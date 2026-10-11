@@ -1,0 +1,10 @@
+{
+  // ตั้งค่าการ deploy ขึ้น Cloudflare (Workers Static Assets) ดูขั้นตอนใน DEPLOY.md ที่โฟลเดอร์หลัก
+  "name": "bewpakorn-shop",
+  "compatibility_date": "2026-04-04",
+  "assets": {
+    "directory": "./dist",
+    // เปิด/รีเฟรชหน้าลึกๆ เช่น /products แล้วให้ตอบหน้าแอป (แทนไฟล์ _redirects ของ Pages)
+    "not_found_handling": "single-page-application"
+  }
+}

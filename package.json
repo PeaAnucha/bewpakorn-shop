@@ -1,0 +1,20 @@
+{
+  "name": "bewpakorn-shop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import:dry": "node scripts/import.mjs --dry-run",
+    "import": "node scripts/import.mjs",
+    "auth:users": "node scripts/create-auth-users.mjs",
+    "import:sql": "node scripts/import.mjs --sql out/bewpakorn_all_in_one.sql",
+    "user:set": "node scripts/user-set.mjs",
+    "backup": "node scripts/backup.mjs",
+    "restore": "node scripts/backup.mjs restore"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0"
+  }
+}
