@@ -9,11 +9,11 @@ import { useToast } from './ui';
 
 function Row({ s, index, handle, edge }: { s: ShopIdRow; index: number; handle?: ReactNode; edge?: ReactNode }) {
   return (
-    <div className="mb-2 flex items-center gap-3 rounded-xl border border-line bg-s2/80 p-2.5">
+    <div className="mb-2 flex items-center gap-3 rounded-lg bg-s2/80 p-2.5">
       {handle}
-      <span className="w-9 shrink-0 text-center font-head text-sm font-bold text-info">{index + 1}</span>
+      <span className="w-9 shrink-0 text-center font-head text-sm font-bold text-accent">{index + 1}</span>
       <div className="min-w-0 flex-1">
-        <code className="rounded bg-s3 px-1.5 py-0.5 text-sm">{s.shopId}</code>
+        <code className="rounded border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-mono text-sm font-semibold text-sky-200">{s.shopId}</code>
         {s.note && <span className="ml-2 text-xs text-mute">{s.note}</span>}
       </div>
       {edge}

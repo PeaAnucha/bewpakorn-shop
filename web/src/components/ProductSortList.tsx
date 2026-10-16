@@ -9,9 +9,9 @@ import { Chip, Thumb, useToast } from './ui';
 
 function Row({ p, index, shop, handle, edge }: { p: Product; index: number; shop?: ShopIdRow; handle?: ReactNode; edge?: ReactNode }) {
   return (
-    <div className="mb-2 flex items-center gap-3 rounded-xl border border-line bg-s2/80 p-2.5">
+    <div className="mb-2 flex items-center gap-3 rounded-lg bg-s2/80 p-2.5">
       {handle}
-      <span className="w-9 shrink-0 text-center font-head text-sm font-bold text-info">{index + 1}</span>
+      <span className="w-9 shrink-0 text-center font-head text-sm font-bold text-accent">{index + 1}</span>
       <Thumb src={p.thumbnail} className="h-12 w-12" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -20,7 +20,7 @@ function Row({ p, index, shop, handle, edge }: { p: Product; index: number; shop
           {p.status !== 'active' && <Chip tone="off">🔴 ปิด</Chip>}
         </div>
         <div className="mt-1 flex flex-wrap gap-1.5">
-          {shop && <Chip tone="shop">🔑 {shop.shopId}</Chip>}
+          {shop && <Chip tone="id" className="text-sm">🔑 {shop.shopId}</Chip>}
           <Chip tone={p.stock <= 0 ? 'low' : 'ok'}>📦 {fmtNum(p.stock)}</Chip>
         </div>
       </div>

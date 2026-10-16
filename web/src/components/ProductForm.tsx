@@ -130,9 +130,9 @@ export default function ProductForm({ product, defaultMapId, maps, shops, produc
       </label>
 
       {isBundle && (
-        <div className="rounded-xl border border-line bg-s2/50 p-3">
+        <div className="rounded-lg bg-s2/50 p-3">
           {rows.map((r) => (
-            <div key={r.key} className="mb-2 flex items-start gap-2 rounded-lg border border-line bg-s3 p-2.5">
+            <div key={r.key} className="mb-2 flex items-start gap-2 rounded-lg bg-s3 p-2.5">
               <div className="min-w-0 flex-1">
                 {r.kind === 'product' ? (
                   <>

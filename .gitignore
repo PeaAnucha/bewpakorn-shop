@@ -4,3 +4,4 @@ data/*.xlsx
 out
 dist
 backups
+.wrangler

@@ -3,12 +3,47 @@
 @tailwind utilities;
 
 html, body, #root { min-height: 100%; }
-body { @apply bg-bg font-sans text-ink antialiased; }
+body { @apply bg-bg font-sans text-ink antialiased; line-height: 1.5; }
+input[type='checkbox'] { accent-color: #1DB954; }
+code, pre { @apply font-mono; }
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+.vanta-page { isolation: isolate; }
+.vanta-scene {
+  position: fixed !important;
+  inset: 0;
+  z-index: 0 !important;
+  pointer-events: none;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 70% 20%, #183522 0%, #121212 55%);
+}
+.vanta-scene-waves { background: radial-gradient(ellipse at 50% 100%, #102a17 0%, #121212 65%); }
+.vanta-scene-net { background: radial-gradient(ellipse at 70% 20%, #183522 0%, #121212 55%); }
+.vanta-scene canvas { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .vanta-scene canvas { display: none; }
+}
 
 @layer components {
-  .card { @apply rounded-2xl border border-line bg-surface p-5; }
-  .inp { @apply w-full rounded-lg border-[1.5px] border-line bg-s2 px-3 py-2.5 text-[0.92rem] text-ink outline-none transition focus:border-accent focus:ring-4 focus:ring-accent/25; }
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold transition active:scale-[0.97] disabled:opacity-50; }
-  .btn-p { @apply bg-gradient-to-br from-accent to-emerald-400 text-white hover:opacity-90; }
-  .btn-g { @apply border border-line bg-s2 text-mute hover:bg-s3 hover:text-ink; }
+  /* แผงกระจกฝ้า โปร่งแสงและเบลอฉากหลังแบบ iPad */
+  .card {
+    @apply rounded-lg p-5;
+    background: rgba(35, 35, 35, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+  }
+  /* ช่องกรอก: พื้น #282828 ไม่มีเส้นขอบ โฟกัสแล้วมีเส้นขาว */
+  .inp { @apply w-full rounded border border-transparent bg-s2 px-3 py-2 text-sm text-ink outline-none transition placeholder:text-mute focus:border-accent; }
+  /* ปุ่ม: ทรงแคปซูล ตัวหนา ขยาย 1.04 ตอน hover */
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold uppercase tracking-[0.05em] transition duration-200 hover:scale-[1.04] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100; }
+  .btn-p { @apply bg-accent text-black hover:bg-accent-hover; }
+  .btn-g { @apply border border-[#727272] bg-transparent text-white hover:border-accent hover:text-accent; }
+  .btn-sm { @apply !px-4 !py-1.5 text-xs; }
+  /* ปุ่มไอคอนเล็ก: ไม่มีกรอบ สว่างขึ้นตอน hover */
+  .icon-btn { @apply inline-flex h-8 w-8 items-center justify-center rounded-full text-sm text-mute transition duration-200 hover:bg-s4 hover:text-white disabled:opacity-40; }
+  /* ตัวเลือก (select) ขนาดกะทัดรัดสำหรับแถบกรอง */
+  .sel { @apply inp !w-auto cursor-pointer; }
 }

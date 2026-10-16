@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import type { MapRow } from '../lib/types';
 
 // ───────── Toast ─────────
@@ -21,7 +21,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex max-w-[90vw] flex-col gap-2">
         {items.map((t) => (
-          <div key={t.id} className={`pointer-events-auto rounded-xl border bg-s2 px-4 py-3 text-sm font-semibold shadow-xl ${color[t.kind]}`}>{t.msg}</div>
+          <div key={t.id} className={`pointer-events-auto rounded-lg border bg-s2 px-4 py-3 text-sm font-semibold shadow-xl ${color[t.kind]}`}>{t.msg}</div>
         ))}
       </div>
     </ToastCtx.Provider>
@@ -39,12 +39,12 @@ export function Modal({ title, onClose, children, footer, wide }: {
   }, [onClose]);
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className={`my-4 w-full ${wide ? 'max-w-2xl' : 'max-w-md'} rounded-2xl border border-line bg-surface shadow-2xl sm:my-8`}>
+      <div className={`my-auto w-full ${wide ? 'max-w-2xl' : 'max-w-md'} rounded-lg bg-s3 shadow-2xl`}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="font-head text-base font-bold">{title}</h2>
+          <h2 className="font-head text-xl font-bold tracking-tight">{title}</h2>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-mute hover:bg-s2 hover:text-ink" aria-label="ปิด">✕</button>
         </div>
         <div className="p-5">{children}</div>
@@ -72,7 +72,7 @@ export const Empty = ({ icon, text }: { icon: string; text: string }) => (
 );
 
 export const ErrorBox = ({ error }: { error: unknown }) => (
-  <div className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm text-danger">โหลดข้อมูลล้มเหลว: {(error as Error)?.message ?? String(error)}</div>
+  <div className="rounded-lg border border-danger/40 bg-danger/10 p-4 text-sm text-danger">โหลดข้อมูลล้มเหลว: {(error as Error)?.message ?? String(error)}</div>
 );
 
 export function Thumb({ src, className = 'h-16 w-16' }: { src?: string | null; className?: string }) {
@@ -81,27 +81,88 @@ export function Thumb({ src, className = 'h-16 w-16' }: { src?: string | null; c
   return <img src={src} alt="" onError={() => setBad(true)} className={`${className} shrink-0 rounded-lg object-cover`} loading="lazy" />;
 }
 
-export const Chip = ({ children, tone = 'default' }: { children: ReactNode; tone?: 'default' | 'ok' | 'low' | 'shop' | 'off' }) => {
+export const Chip = ({ children, tone = 'default', className = '' }: { children: ReactNode; tone?: 'default' | 'ok' | 'low' | 'shop' | 'off' | 'id' | 'map'; className?: string }) => {
   const tones = {
     default: 'bg-s3 text-mute', ok: 'bg-green/15 text-green', low: 'bg-danger/15 text-danger', shop: 'bg-accent/15 text-accent', off: 'bg-danger/10 text-danger',
+    id: 'border border-sky-300/25 bg-sky-400/15 font-mono text-sky-200',
+    map: 'border border-amber-300/25 bg-amber-400/15 text-amber-200',
   };
-  return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold ${tones[tone]} ${className}`}>{children}</span>;
 };
 
-/** แถบเลือกแมพ (ชิป) พร้อมจำนวน */
+/**
+ * แถบเลือกแมพ (ชิป) พร้อมจำนวน: ปกติแสดงแถวเดียว ถ้าชิปเกินแถวจะมีปุ่ม "ดูทั้งหมด" กางทุกอันออกมา
+ * (ไม่ใช้การเลื่อนแนวนอนที่ซ่อนแถบเลื่อน เพราะเมาส์เลื่อนไม่ได้)
+ */
 export function MapChips({ maps, counts, total, selected, onSelect }: {
   maps: MapRow[]; counts: Record<string, number>; total: number; selected: string; onSelect: (id: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const [overflow, setOverflow] = useState(false);
+  const [rowH, setRowH] = useState(36);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const first = el.firstElementChild as HTMLElement | null;
+      if (!first) return;
+      setRowH(first.offsetHeight);
+      setOverflow(el.scrollHeight > first.offsetHeight + 4);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [maps.length, total]);
+
   const cls = (on: boolean) =>
-    `cursor-pointer whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-semibold transition ${on ? 'border-accent bg-accent/15 text-accent' : 'border-line bg-s2 text-mute hover:text-ink'}`;
+    `cursor-pointer whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-200 ${on ? 'bg-accent text-black' : 'bg-amber-400/10 text-amber-200 ring-1 ring-amber-300/20 hover:bg-amber-400/20'}`;
+  const count = (n: number, on: boolean) => <span className={`ml-1 text-xs ${on ? 'opacity-70' : 'text-mute'}`}>{n}</span>;
   return (
-    <div className="flex flex-wrap gap-2">
-      <button className={cls(selected === 'all')} onClick={() => onSelect('all')}>🌐 ทั้งหมด <span className="ml-1 text-xs opacity-70">{total}</span></button>
-      {maps.map((m) => (
-        <button key={m.id} className={cls(selected === m.id)} onClick={() => onSelect(m.id)}>
-          {m.icon} {m.name} <span className="ml-1 text-xs opacity-70">{counts[m.id] ?? 0}</span>
+    <div className="flex items-start gap-2">
+      <div ref={ref} className="flex min-w-0 flex-1 flex-wrap gap-2 overflow-hidden" style={expanded ? undefined : { maxHeight: rowH }}>
+        <button className={cls(selected === 'all')} onClick={() => onSelect('all')}>ทั้งหมด{count(total, selected === 'all')}</button>
+        {maps.map((m) => (
+          <button key={m.id} className={cls(selected === m.id)} onClick={() => onSelect(m.id)}>
+            {m.icon} {m.name}{count(counts[m.id] ?? 0, selected === m.id)}
+          </button>
+        ))}
+      </div>
+      {(overflow || expanded) && (
+        <button className="btn btn-g btn-sm shrink-0 !normal-case" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+          {expanded ? 'ย่อ ▴' : `ดูทั้งหมด (${maps.length + 1}) ▾`}
         </button>
-      ))}
+      )}
+    </div>
+  );
+}
+
+/** เมนูเพิ่มเติม (⋯) สำหรับการกระทำที่ไม่ใช้บ่อย เพื่อไม่ให้หน้าจอรก */
+export function Menu({ items }: { items: { key: string; label: string; onClick: () => void; hidden?: boolean }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', down);
+    document.addEventListener('keydown', key);
+    return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
+  }, [open]);
+  const visible = items.filter((i) => !i.hidden);
+  if (!visible.length) return null;
+  return (
+    <div ref={ref} className="relative">
+      <button className="btn btn-g btn-sm !px-3" aria-haspopup="menu" aria-expanded={open} aria-label="เมนูเพิ่มเติม" onClick={() => setOpen((o) => !o)}>⋯</button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-40 mt-2 min-w-[210px] overflow-hidden rounded-lg bg-s3 py-1 shadow-xl shadow-black/60">
+          {visible.map((i) => (
+            <button key={i.key} role="menuitem" className="block w-full px-4 py-2.5 text-left text-sm transition hover:bg-s4" onClick={() => { setOpen(false); i.onClick(); }}>{i.label}</button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -110,7 +171,7 @@ export const SortTabs = <K extends string>({ tabs, value, onChange }: { tabs: [K
   <div className="mb-3 flex flex-wrap gap-2">
     {tabs.map(([k, label]) => (
       <button key={k} onClick={() => onChange(k)}
-        className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${value === k ? 'border-accent bg-accent/15 text-accent' : 'border-line bg-s2 text-mute hover:text-ink'}`}>
+        className={`rounded-full px-3 py-1.5 text-xs font-medium transition duration-200 ${value === k ? 'bg-accent text-black' : 'bg-s2 text-white hover:bg-s3'}`}>
         {label}
       </button>
     ))}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Chip, Empty, ErrorBox, SortTabs, Spinner, Thumb, useToast } from '../components/ui';
+import { Chip, Empty, ErrorBox, Spinner, Thumb, useToast } from '../components/ui';
 import { errMsg, saveStockCount, useGhosts, useMaps, useProducts, useRefreshData, useShopIdsOrdered } from '../lib/data';
 import { fmtNum } from '../lib/format';
 import { mapCtx, sortProducts, type SortKey } from '../lib/products';
@@ -15,31 +15,33 @@ function CountInput({ value, onChange, dirty }: { value: number; onChange: (n: n
   useEffect(() => { if ((parseInt(text, 10) || 0) !== value) setText(String(value)); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <input type="number" min={0} inputMode="numeric" value={text}
-      className={`inp !w-20 !px-1 !py-1.5 text-center font-head font-bold ${dirty ? '!border-warn !text-warn' : ''}`}
+      className={`inp min-w-0 flex-1 text-center font-head text-base font-bold ${dirty ? '!border-warn !text-warn' : ''}`}
       onChange={(e) => { setText(e.target.value); onChange(Math.max(0, parseInt(e.target.value, 10) || 0)); }}
       onFocus={(e) => e.target.select()} />
   );
 }
 
+/** แถวนับ: บรรทัดแรกบอกค่าเดิมและส่วนต่าง บรรทัดที่สอง [−] ช่องกรอก [+] ปุ่มบันทึกโผล่เฉพาะเมื่อมีการแก้ */
 function CountRow({ orig, cur, onChange, onSave, saving }: { orig: number; cur: number; onChange: (n: number) => void; onSave: () => void; saving: boolean }) {
   const dirty = cur !== orig;
   const diff = cur - orig;
+  const step = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#242424] text-lg leading-none text-white transition hover:bg-[#333333] active:scale-95';
   return (
     <>
-      <div className="mt-2 flex items-center gap-2">
-        <span className="text-xs text-faint">เดิม</span>
-        <span className="font-head font-bold text-mute">{fmtNum(orig)}</span>
-        <div className="flex flex-col">
-          <button className="rounded-t bg-s3 px-2 text-xs leading-4 text-mute hover:bg-s4" onClick={() => onChange(cur + 1)} aria-label="+1">▲</button>
-          <button className="rounded-b bg-s3 px-2 text-xs leading-4 text-mute hover:bg-s4" onClick={() => onChange(Math.max(0, cur - 1))} aria-label="-1">▼</button>
-        </div>
-        <CountInput value={cur} onChange={onChange} dirty={dirty} />
-        <span className={`text-sm font-bold ${!dirty ? 'text-faint' : diff > 0 ? 'text-green' : 'text-danger'}`}>{dirty ? `${diff > 0 ? '+' : ''}${fmtNum(diff)}` : '—'}</span>
+      <div className="mt-2 flex items-center justify-between text-xs text-faint">
+        <span>เดิม <b className="font-head text-sm text-mute">{fmtNum(orig)}</b></span>
+        {dirty && <span className={`font-head text-sm font-bold ${diff > 0 ? 'text-green' : 'text-danger'}`}>{diff > 0 ? '+' : ''}{fmtNum(diff)}</span>}
       </div>
-      <button disabled={!dirty || saving} onClick={onSave}
-        className={`mt-2 w-full rounded-lg px-3 py-1.5 text-xs font-bold transition ${dirty ? 'bg-accent text-white hover:opacity-90' : 'bg-s3 text-faint'}`}>
-        {saving ? '⏳ กำลังบันทึก…' : dirty ? `💾 บันทึก (${fmtNum(orig)}→${fmtNum(cur)})` : '✓ ไม่มีการเปลี่ยนแปลง'}
-      </button>
+      <div className="mt-1.5 flex items-center gap-2">
+        <button className={step} aria-label="-1" onClick={() => onChange(Math.max(0, cur - 1))}>−</button>
+        <CountInput value={cur} onChange={onChange} dirty={dirty} />
+        <button className={step} aria-label="+1" onClick={() => onChange(cur + 1)}>+</button>
+      </div>
+      {dirty && (
+        <button disabled={saving} onClick={onSave} className="btn btn-p btn-sm mt-2 w-full">
+          {saving ? '⏳ กำลังบันทึก…' : `💾 บันทึก (${fmtNum(orig)}→${fmtNum(cur)})`}
+        </button>
+      )}
     </>
   );
 }
@@ -158,22 +160,28 @@ export default function StockCountPage() {
 
   const loading = maps.isLoading || shops.isLoading || products.isLoading || ghosts.isLoading;
   const error = maps.error || shops.error || products.error || ghosts.error;
-  const sel = 'inp !w-auto min-w-[140px] flex-1';
+  const sel = 'sel min-w-[130px] flex-1';
 
   const ProductCard = ({ p }: { p: Product }) => {
     const map = mapList.find((m: MapRow) => m.id === p.mapId);
+    const shop = shopList.find((s) => s.id === p.shopIdRef);
     const cur = curP(p);
     const dirty = pc[p.id] !== undefined && pc[p.id] !== p.stock;
     return (
-      <div className={`flex gap-3 rounded-xl border bg-s2/60 p-3 transition ${dirty ? 'border-warn/60' : 'border-line'}`}>
-        <Thumb src={p.thumbnail} className="h-16 w-16" />
-        <div className="min-w-0 flex-1">
-          <div className="break-words font-bold">{p.name}{p.isBundle && <span className="ml-1.5"><Chip tone="shop">📦</Chip></span>}</div>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {map && <Chip>{map.icon} {map.name}</Chip>}
-            {p.stock <= LOW && <Chip tone="low">⚠️ ต่ำ</Chip>}
-            {p.isBundle && <Chip>คำนวณจากส่วนประกอบ</Chip>}
+      <div className={`flex h-full flex-col rounded-lg border bg-[#191919]/95 p-3 transition ${dirty ? 'border-warn/60' : 'border-[#303030]'}`}>
+        <div className="flex gap-3">
+          <Thumb src={p.thumbnail} className="h-14 w-14 sm:h-16 sm:w-16" />
+          <div className="min-w-0 flex-1">
+            <div className="break-words font-bold">{p.name}{p.isBundle && <span className="ml-1.5"><Chip tone="shop">📦</Chip></span>}</div>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {map && <Chip tone="map" className="text-[0.8rem]">{map.icon} {map.name}</Chip>}
+              <Chip tone="id" className="text-[0.8rem]">🔑 {shop?.shopId ?? 'ไม่ระบุ Account'}</Chip>
+              {p.stock <= LOW && <Chip tone="low">⚠️ ต่ำ</Chip>}
+              {p.isBundle && <Chip>คำนวณจากส่วนประกอบ</Chip>}
+            </div>
           </div>
+        </div>
+        <div className="mt-auto pt-2">
           {p.isBundle ? (
             <div className="mt-2 text-sm text-mute">คงเหลือ <b className="font-head text-lg text-accent">{fmtNum(p.stock)}</b> ชุด <span className="text-xs text-faint">(แก้ที่ส่วนประกอบ)</span></div>
           ) : (
@@ -187,11 +195,15 @@ export default function StockCountPage() {
   const GhostCard = ({ g }: { g: Ghost }) => {
     const dirty = gc[g.id] !== undefined && gc[g.id] !== g.stock;
     return (
-      <div className={`flex gap-3 rounded-xl border bg-s2/60 p-3 ${dirty ? 'border-warn/60' : 'border-orange/30'}`}>
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-s3 text-3xl">👻</div>
-        <div className="min-w-0 flex-1">
-          <div className="break-words font-bold text-orange">{g.name}</div>
-          <div className="mt-1"><Chip>Non-sale Component</Chip>{g.stock <= LOW && <span className="ml-1.5"><Chip tone="low">⚠️ ต่ำ</Chip></span>}</div>
+      <div className={`flex h-full flex-col rounded-lg border bg-[#191919]/95 p-3 ${dirty ? 'border-warn/60' : 'border-orange/30'}`}>
+        <div className="flex gap-3">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-s3 text-3xl sm:h-16 sm:w-16">👻</div>
+          <div className="min-w-0 flex-1">
+            <div className="break-words font-bold text-orange">{g.name}</div>
+            <div className="mt-1"><Chip>Non-sale Component</Chip>{g.stock <= LOW && <span className="ml-1.5"><Chip tone="low">⚠️ ต่ำ</Chip></span>}</div>
+          </div>
+        </div>
+        <div className="mt-auto pt-2">
           <CountRow orig={g.stock} cur={curG(g)} saving={saving.has(g.id)} onChange={(n) => setGc((c) => ({ ...c, [g.id]: n }))} onSave={() => saveOneGhost(g)} />
         </div>
       </div>
@@ -200,47 +212,49 @@ export default function StockCountPage() {
 
   return (
     <div>
-      <div className="card mb-4">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          {[['รายการทั้งหมด', stats.total, 'text-accent'], ['รายการที่แก้ไข', stats.changed, 'text-warn'], ['เพิ่มขึ้น', stats.inc, 'text-green'], ['ลดลง', stats.dec, 'text-danger']].map(([l, v, c]) => (
-            <div key={l as string}><div className={`font-head text-2xl font-extrabold ${c}`}>{v}</div><div className="text-xs text-mute">{l}</div></div>
-          ))}
+      <div className="sticky top-0 z-20 mb-4 bg-bg/95 py-3 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <h1 className="font-head text-2xl font-bold tracking-tight">🧮 นับสต็อก</h1>
+          <div className="flex flex-wrap items-center gap-x-4 text-sm text-mute">
+            <span><b className="text-white">{stats.total}</b> รายการ</span>
+            <span className={stats.changed ? 'text-warn' : ''}><b>{stats.changed}</b> แก้ไข</span>
+            {stats.changed > 0 && <><span className="text-green">▲ {stats.inc}</span><span className="text-danger">▼ {stats.dec}</span></>}
+          </div>
           <div className="ml-auto flex gap-2">
-            <button className="btn btn-g" onClick={resetAll} disabled={!dirtyCount}>↩️ รีเซ็ต</button>
-            {stats.changed > 0 && <button className="btn btn-p" disabled={saving.has('__all__')} onClick={saveAll}>{saving.has('__all__') ? '⏳ กำลังบันทึก…' : `💾 บันทึกทั้งหมด (${stats.changed})`}</button>}
+            <button className="btn btn-g btn-sm" onClick={resetAll} disabled={!dirtyCount}>↩️ รีเซ็ต</button>
+            {stats.changed > 0 && <button className="btn btn-p btn-sm" disabled={saving.has('__all__')} onClick={saveAll}>{saving.has('__all__') ? '⏳ กำลังบันทึก…' : `💾 บันทึกทั้งหมด (${stats.changed})`}</button>}
           </div>
         </div>
-        {dirtyCount > 0 && <div className="mt-3 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm font-semibold text-warn">⚠️ มีการแก้ไขที่ยังไม่ได้บันทึก</div>}
       </div>
 
-      <div className="card">
-        <h1 className="mb-3 font-head text-base font-bold">🧮 นับสต็อก</h1>
-        <div className="mb-3 flex flex-wrap gap-2">
-          <input className="inp min-w-[180px] flex-[2]" placeholder="🔍 ค้นหาสินค้า…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className={sel} value={mapF} onChange={(e) => setMapF(e.target.value)}>
-            <option value="">🌐 ทุกแมพ</option>{mapList.map((m) => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
-          </select>
-          <select className={sel} value={acctF} onChange={(e) => setAcctF(e.target.value)}>
-            <option value="">🔑 ทุก Account ID</option>{acctOptions.map((s) => <option key={s.id} value={s.id}>{s.shopId}{mapName(s.mapId) ? ` (${mapName(s.mapId)})` : ''}</option>)}
-          </select>
-          <select className={sel} value={typeF} onChange={(e) => setTypeF(e.target.value as TypeF)}>
-            <option value="">ทุกประเภท</option><option value="normal">📌 ปกติ</option><option value="bundle">📦 Bundle</option><option value="ghost">👻 Ghost</option>
-          </select>
-          <select className={sel} value={stockF} onChange={(e) => setStockF(e.target.value as StockF)}>
-            <option value="">ทุกระดับสต็อก</option><option value="low">⚠️ ต่ำ (≤{LOW})</option><option value="zero">หมด (0)</option><option value="ok">ปกติ (&gt;{LOW})</option>
-          </select>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <input className="inp min-w-[200px] flex-[2]" placeholder="🔍 ค้นหาสินค้า…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className={sel} aria-label="แมพ" value={mapF} onChange={(e) => setMapF(e.target.value)}>
+          <option value="">🌐 ทุกแมพ</option>{mapList.map((m) => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
+        </select>
+        <select className={sel} aria-label="Account ID" value={acctF} onChange={(e) => setAcctF(e.target.value)}>
+          <option value="">🔑 ทุก Account ID</option>{acctOptions.map((s) => <option key={s.id} value={s.id}>{s.shopId}{mapName(s.mapId) ? ` (${mapName(s.mapId)})` : ''}</option>)}
+        </select>
+        <select className={sel} aria-label="ประเภท" value={typeF} onChange={(e) => setTypeF(e.target.value as TypeF)}>
+          <option value="">ทุกประเภท</option><option value="normal">📌 ปกติ</option><option value="bundle">📦 เซ็ต</option><option value="ghost">👻 Ghost</option>
+        </select>
+        <select className={sel} aria-label="ระดับสต็อก" value={stockF} onChange={(e) => setStockF(e.target.value as StockF)}>
+          <option value="">ทุกระดับสต็อก</option><option value="low">⚠️ ต่ำ (≤{LOW})</option><option value="zero">หมด (0)</option><option value="ok">ปกติ (&gt;{LOW})</option>
+        </select>
+        <select className={sel} aria-label="เรียงลำดับ" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+          <option value="custom">เรียงตามลำดับ</option><option value="name">ชื่อ A→Z</option><option value="stock-asc">สต็อกน้อย→มาก</option>
+          <option value="stock-desc">สต็อกมาก→น้อย</option><option value="map">ตามแมพ</option>
+        </select>
+      </div>
+
+      {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !pList.length && !gList.length ? <Empty icon="🎁" text="ไม่พบสินค้า" /> : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {pList.length > 0 && gList.length > 0 && <div className="col-span-full pt-1 text-xs font-bold uppercase tracking-[0.1em] text-mute">📦 สินค้า ({pList.length})</div>}
+          {pList.map((p) => <ProductCard key={p.id} p={p} />)}
+          {gList.length > 0 && <div className="col-span-full pt-3 text-xs font-bold uppercase tracking-[0.1em] text-orange">👻 Non-sale Components ({gList.length})</div>}
+          {gList.map((g) => <GhostCard key={g.id} g={g} />)}
         </div>
-        <SortTabs<SortKey> tabs={[['custom', '🔢 เรียงตามลำดับ'], ['name', '🔤 ชื่อ A→Z'], ['stock-asc', '📦 สต็อกน้อย→มาก'], ['stock-desc', '📦 สต็อกมาก→น้อย'], ['map', '🗺️ แมพ']]} value={sort} onChange={setSort} />
-
-        {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !pList.length && !gList.length ? <Empty icon="🎁" text="ไม่พบสินค้า" /> : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {pList.length > 0 && gList.length > 0 && <div className="col-span-full pt-1 text-xs font-extrabold uppercase tracking-wider text-mute">📦 สินค้า ({pList.length})</div>}
-            {pList.map((p) => <ProductCard key={p.id} p={p} />)}
-            {gList.length > 0 && <div className="col-span-full border-t border-line pt-3 text-xs font-extrabold uppercase tracking-wider text-orange">👻 Non-sale Components ({gList.length})</div>}
-            {gList.map((g) => <GhostCard key={g.id} g={g} />)}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

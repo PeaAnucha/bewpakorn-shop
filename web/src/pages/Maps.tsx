@@ -50,7 +50,7 @@ interface CardProps {
 /** ตัวการ์ดแมพ (ใช้ทั้งในตาราง และเป็นภาพที่ลอยตามเมาส์ตอนลาก) */
 function MapCard({ map, index, canEdit, canDelete, onEdit, onDelete, handle }: CardProps & { handle?: React.ReactNode }) {
   return (
-    <div className="relative h-full select-none rounded-xl border border-line bg-s2 p-4 pb-7 text-center">
+    <div className="relative h-full select-none rounded-lg bg-s2 p-4 pb-7 text-center">
       <span className="absolute left-2 top-2 rounded-md bg-s3 px-1.5 py-0.5 text-[0.65rem] font-bold text-faint">{index + 1}</span>
       {handle}
       <div className="absolute right-2 top-2 flex gap-1">
@@ -58,7 +58,7 @@ function MapCard({ map, index, canEdit, canDelete, onEdit, onDelete, handle }: C
         {canDelete && <button className="btn !px-2 !py-1 text-xs bg-danger/15 text-danger hover:bg-danger/25" onClick={onDelete}>🗑️</button>}
       </div>
       <div className="mt-5 text-4xl">{map.icon || '🗺️'}</div>
-      <div className="mt-2 font-head text-sm font-bold">{map.name}</div>
+      <div className="mt-2 font-head text-base font-bold text-amber-200">{map.name}</div>
       <div className="mt-1 text-xs text-mute">{map.description || '—'}</div>
     </div>
   );
@@ -123,7 +123,7 @@ export default function MapsPage() {
   return (
     <div className="card">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-head text-base font-bold">🗺️ จัดการแมพ</h1>
+        <h1 className="font-head text-2xl font-bold tracking-tight">🗺️ จัดการแมพ</h1>
         {can('maps', 'add') && <button className="btn btn-p" onClick={() => setEditing('new')}>+ เพิ่มแมพ</button>}
       </div>
       {canEdit && list.length > 1 && (

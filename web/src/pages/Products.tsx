@@ -4,9 +4,9 @@ import BulkProducts from '../components/BulkProducts';
 import ProductDetail from '../components/ProductDetail';
 import ProductForm from '../components/ProductForm';
 import ProductSortList from '../components/ProductSortList';
-import { Chip, Empty, ErrorBox, MapChips, SortTabs, Spinner, Thumb, useToast } from '../components/ui';
+import { Chip, Empty, ErrorBox, MapChips, Menu, Spinner, Thumb, useToast } from '../components/ui';
 import { deleteProducts, errMsg, useGhosts, useMaps, useProducts, useRefreshData, useShopIdsOrdered } from '../lib/data';
-import { downloadCsv, fmtDateTime, fmtNum, today } from '../lib/format';
+import { downloadCsv, fmtNum, today } from '../lib/format';
 import { emptyShopIds, filterSortProducts, type SortKey, type TypeTab } from '../lib/products';
 import type { Product } from '../lib/types';
 
@@ -84,137 +84,138 @@ export default function ProductsPage() {
   const loading = maps.isLoading || shops.isLoading || products.isLoading;
   const error = maps.error || shops.error || products.error;
 
+  const countText = loading ? '…' : `${fmtNum(sortMode ? sortList.length : list.length)} รายการ`;
+
   return (
     <div>
-      <div className="mb-3 text-sm text-mute">
-        <button className="text-accent hover:underline" onClick={() => { setSelMap('all'); setSortMode(false); }}>สินค้าทั้งหมด</button>
-        {selectedMap && <> / {selectedMap.icon} {selectedMap.name}</>}
+      {/* หัวหน้า: ชื่อ + จำนวน และปุ่มหลักเพียงไม่กี่ปุ่ม (ที่เหลืออยู่ในเมนู ⋯) */}
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-head text-2xl font-bold tracking-tight">📦 สินค้า</h1>
+          <p className="text-sm text-mute">{countText}{selectedMap && ` · ${selectedMap.icon ?? ''} ${selectedMap.name}`}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {canEdit && (
+            <button
+              className={`btn btn-sm ${sortMode ? 'btn-p' : 'btn-g'}`}
+              disabled={!sortMode && selMap === 'all'}
+              title={!sortMode && selMap === 'all' ? 'เลือกแมพก่อน จึงจะจัดเรียงสินค้าได้' : undefined}
+              onClick={toggleSortMode}
+            >
+              {sortMode ? '✅ เสร็จสิ้นการจัดเรียง' : '↕️ จัดเรียงสินค้า'}
+            </button>
+          )}
+          {!sortMode && can('products', 'add') && <button className="btn btn-p btn-sm" onClick={() => setForm({ product: null })}>+ เพิ่มสินค้า</button>}
+          {!sortMode && (
+            <Menu items={[
+              { key: 'csv', label: '📥 ส่งออก CSV', hidden: !can('products', 'export'), onClick: exportCsv },
+              { key: 'bulk', label: '➕ เพิ่มหลายรายการ', hidden: !can('products', 'add'), onClick: () => setBulk(true) },
+            ]} />
+          )}
+        </div>
       </div>
 
-      <div className="card mb-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h1 className="font-head text-base font-bold">🗺️ เลือกแมพ</h1>
-          <div className="flex flex-wrap gap-2">
-            {can('products', 'export') && <button className="btn btn-g" onClick={exportCsv}>📥 CSV</button>}
-            {can('products', 'add') && <button className="btn btn-g" onClick={() => setBulk(true)}>➕ เพิ่มหลายรายการ</button>}
-            {can('products', 'add') && <button className="btn btn-p" onClick={() => setForm({ product: null })}>+ เพิ่มสินค้า</button>}
-          </div>
-        </div>
+      <div className="mb-4">
         <MapChips maps={mapList} counts={counts} total={all.length} selected={selMap} onSelect={(id) => { setSelMap(id); resetView(); if (id === 'all') setSortMode(false); }} />
       </div>
 
-      <div className="card">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-head text-base font-bold">{selectedMap ? `สินค้าใน ${selectedMap.icon ?? ''} ${selectedMap.name}` : 'สินค้าทั้งหมด'}</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            {!sortMode && picked.size > 0 && canDel && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-mute">{picked.size} รายการ</span>
-                <button className="btn bg-danger/15 text-danger hover:bg-danger/25" onClick={() => remove([...picked])}>🗑️ ลบที่เลือก</button>
-                <button className="btn btn-g" onClick={() => setPicked(new Set())}>✕ ยกเลิก</button>
-              </div>
-            )}
-            {canEdit && (
-              <button
-                className={`btn text-xs text-white ${sortMode ? 'bg-danger' : 'bg-indigo-500'}`}
-                disabled={!sortMode && selMap === 'all'}
-                title={!sortMode && selMap === 'all' ? 'เลือกแมพก่อน จึงจะจัดเรียงสินค้าได้' : undefined}
-                onClick={toggleSortMode}
-              >
-                {sortMode ? '✅ เสร็จสิ้นการจัดเรียง' : '↕️ จัดเรียงสินค้า'}
-              </button>
-            )}
+      {sortMode ? (
+        <>
+          <div className="mb-3 rounded-lg bg-s2 px-4 py-2.5 text-xs text-mute">
+            ↕️ ลากรายการ (หรือกดค้างบนมือถือ) เพื่อจัดลำดับ · ปุ่ม ⤒ ⤓ ย้ายไปบนสุด/ล่างสุด · บันทึกอัตโนมัติ · ลำดับ 1..{sortList.length} ใช้เฉพาะภายในแมพนี้ (รวมสินค้าที่ปิดอยู่)
           </div>
-        </div>
-
-        {sortMode ? (
-          <div className="mb-3 rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-xs text-info">
-            ↕️ ลากรายการ (หรือกดค้างบนมือถือ) เพื่อจัดลำดับ · ปุ่ม ⤒ ⤓ ย้ายไปบนสุด/ล่างสุด · บันทึกอัตโนมัติ · ลำดับ 1..{sortList.length} ใช้เฉพาะภายในแมพนี้ ({fmtNum(sortList.length)} รายการ รวมสินค้าที่ปิดอยู่)
+          {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !sortList.length ? <Empty icon="🎁" text="แมพนี้ยังไม่มีสินค้า" /> : <ProductSortList products={sortList} shops={shopList} />}
+        </>
+      ) : (
+        <>
+          <div className="mb-3 flex flex-wrap gap-2">
+            <input className="inp min-w-[220px] flex-1" placeholder="🔍 ค้นหาสินค้า… (ชื่อสินค้า, ชื่อแมพ, ไอดีร้าน)" value={q} onChange={(e) => { setQ(e.target.value); resetView(); }} />
+            <select className="sel" aria-label="สถานะ" value={status} onChange={(e) => { setStatus(e.target.value); resetView(); }}>
+              <option value="">ทุกสถานะ</option><option value="active">ใช้งาน</option><option value="inactive">ปิด</option>
+            </select>
+            <select className="sel" aria-label="ประเภท" value={type} onChange={(e) => { setType(e.target.value as TypeTab); resetView(); }}>
+              <option value="all">ทุกประเภท</option><option value="normal">📌 ปกติ</option><option value="bundle">📦 เซ็ต (Bundle)</option>
+            </select>
+            <select className="sel" aria-label="เรียงลำดับ" value={sort} onChange={(e) => { setSort(e.target.value as SortKey); resetView(); }}>
+              <option value="custom">เรียงตามลำดับ</option><option value="name">ชื่อ A→Z</option><option value="stock-asc">สต็อกน้อย→มาก</option>
+              <option value="stock-desc">สต็อกมาก→น้อย</option><option value="map">ตามแมพ</option>
+            </select>
           </div>
-        ) : (
-          <>
-        <div className="mb-3 flex flex-wrap gap-2">
-          <input className="inp min-w-[200px] flex-1" placeholder="🔍 ค้นหาสินค้า… (ชื่อสินค้า, ชื่อแมพ, ไอดีร้าน)" value={q} onChange={(e) => { setQ(e.target.value); resetView(); }} />
-          <select className="inp !w-36" value={status} onChange={(e) => { setStatus(e.target.value); resetView(); }}>
-            <option value="">ทุกสถานะ</option><option value="active">ใช้งาน</option><option value="inactive">ปิด</option>
-          </select>
-        </div>
-        <SortTabs<TypeTab> tabs={[['all', '🔖 ทั้งหมด'], ['normal', '📌 ปกติ'], ['bundle', '📦 Bundle']]} value={type} onChange={(t) => { setType(t); resetView(); }} />
-        <SortTabs<SortKey> tabs={[['custom', '🔢 เรียงตามลำดับ'], ['name', '🔤 ชื่อ A→Z'], ['stock-asc', '📦 สต็อกน้อย→มาก'], ['stock-desc', '📦 สต็อกมาก→น้อย'], ['map', '🗺️ แมพ']]} value={sort} onChange={(s) => { setSort(s); resetView(); }} />
 
-        {(flags.empty.length > 0 || flags.outOfStock.length > 0) && (
-          <div className="mb-3 space-y-2 text-xs">
-            {flags.empty.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-danger/30 bg-danger/10 p-2.5">
-                <b className="text-danger">🚫 ไม่มีสินค้าเลย · {selectedMap?.name ?? 'ทุกแมพ'} ({flags.empty.length})</b>
-                {flags.empty.map((s) => <Chip key={s.id} tone="off">🔑 {s.shopId}</Chip>)}
+          {(flags.empty.length > 0 || flags.outOfStock.length > 0) && (
+            <details className="mb-3 rounded-lg bg-s2/60 px-4 py-2.5 text-sm">
+              <summary className="cursor-pointer select-none text-mute">
+                ⚠️ ไอดีที่ควรตรวจสอบ{selectedMap ? ` ใน ${selectedMap.name}` : ''}:{' '}
+                {flags.empty.length > 0 && <>ไม่มีสินค้า <b className="text-danger">{flags.empty.length}</b></>}
+                {flags.empty.length > 0 && flags.outOfStock.length > 0 && ' · '}
+                {flags.outOfStock.length > 0 && <>สต็อกหมดทั้งหมด <b className="text-warn">{flags.outOfStock.length}</b></>}
+              </summary>
+              <div className="mt-3 space-y-2 text-xs">
+                {flags.empty.length > 0 && <div className="flex flex-wrap items-center gap-1.5"><span className="text-mute">ไม่มีสินค้า:</span>{flags.empty.map((s) => <Chip key={s.id} tone="off">🔑 {s.shopId}</Chip>)}</div>}
+                {flags.outOfStock.length > 0 && <div className="flex flex-wrap items-center gap-1.5"><span className="text-mute">สต็อกหมดทั้งหมด:</span>{flags.outOfStock.map((s) => <Chip key={s.id} tone="low">🔑 {s.shopId}</Chip>)}</div>}
               </div>
-            )}
-            {flags.outOfStock.length > 0 && (
-              <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-warn/30 bg-warn/10 p-2.5">
-                <b className="text-warn">⚠️ สินค้าหมดสต็อกทั้งหมด · {selectedMap?.name ?? 'ทุกแมพ'} ({flags.outOfStock.length})</b>
-                {flags.outOfStock.map((s) => <Chip key={s.id} tone="low">🔑 {s.shopId}</Chip>)}
-              </div>
-            )}
-          </div>
-        )}
-          </>
-        )}
+            </details>
+          )}
 
-        {sortMode ? (
-          loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !sortList.length ? <Empty icon="🎁" text="แมพนี้ยังไม่มีสินค้า" /> : <ProductSortList products={sortList} shops={shopList} />
-        ) : loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !list.length ? <Empty icon="🎁" text="ไม่พบสินค้า" /> : (
-          <>
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-sm font-semibold">
-                {canDel && <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(list.map((p) => p.id)))} />}
-                {fmtNum(list.length)} รายการ
-              </label>
+          {picked.size > 0 && canDel && (
+            <div className="sticky top-2 z-10 mb-2 flex items-center gap-3 rounded-lg bg-s3 px-4 py-2 text-sm shadow-lg shadow-black/40">
+              <span className="font-semibold">เลือก {picked.size} รายการ</span>
+              <button className="btn btn-sm bg-danger text-white" onClick={() => remove([...picked])}>🗑️ ลบ</button>
+              <button className="btn btn-g btn-sm" onClick={() => setPicked(new Set())}>ยกเลิก</button>
             </div>
-            <div className="space-y-2">
-              {visible.map((p) => {
-                const map = mapList.find((m) => m.id === p.mapId);
-                const shop = shopList.find((s) => s.id === p.shopIdRef);
-                return (
-                  <div key={p.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-s2/60 p-3 sm:flex-nowrap">
-                    {canDel && <input type="checkbox" checked={picked.has(p.id)} onChange={() => togglePick(p.id)} />}
-                    <Thumb src={p.thumbnail} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <strong className="break-words">{p.name}</strong>
-                        {p.isBundle && <Chip tone="shop">📦 Bundle</Chip>}
-                        <span className={`rounded px-1.5 py-0.5 text-[0.7rem] font-bold ${p.sortOrder !== null ? 'bg-info/15 text-info' : 'bg-s3 text-faint'}`}>
-                          {p.sortOrder !== null ? `🔢 ลำดับ ${p.sortOrder}` : 'ไม่มีลำดับ'}
-                        </span>
+          )}
+
+          {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !list.length ? <Empty icon="🎁" text="ไม่พบสินค้า" /> : (
+            <>
+              <div className="overflow-hidden rounded-lg bg-surface">
+                {canDel && (
+                  <label className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2 text-xs font-bold uppercase tracking-[0.1em] text-mute">
+                    <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(list.map((p) => p.id)))} />
+                    เลือกทั้งหมด
+                  </label>
+                )}
+                {visible.map((p) => {
+                  const map = mapList.find((m) => m.id === p.mapId);
+                  const shop = shopList.find((s) => s.id === p.shopIdRef);
+                  return (
+                    <div key={p.id} onClick={() => setDetailId(p.id)}
+                      className={`group flex cursor-pointer items-center gap-3 border-b border-line/50 px-3 py-2.5 transition duration-200 last:border-b-0 hover:bg-s2 ${p.status === 'active' ? '' : 'opacity-60'}`}>
+                      {canDel && <input type="checkbox" checked={picked.has(p.id)} onClick={(e) => e.stopPropagation()} onChange={() => togglePick(p.id)} />}
+                      <Thumb src={p.thumbnail} className="h-11 w-11" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2">
+                          <strong className="break-words font-semibold">{p.name}</strong>
+                          {p.isBundle && <span className="text-xs font-bold text-accent">📦 เซ็ต</span>}
+                          {p.status !== 'active' && <span className="text-xs font-bold text-danger">ปิดใช้งาน</span>}
+                        </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-mute">
+                          {shop && <Chip tone="id" className="text-sm">🔑 {shop.shopId}</Chip>}
+                          {selMap === 'all' && map && <Chip tone="map" className="text-sm">{map.icon} {map.name}</Chip>}
+                        </div>
                       </div>
-                      {p.description && <div className="mt-0.5 text-xs text-mute">{p.description.slice(0, 80)}{p.description.length > 80 ? '…' : ''}</div>}
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {shop && <Chip tone="shop">🔑 {shop.shopId}</Chip>}
-                        <Chip tone={p.stock <= 0 ? 'low' : 'ok'}>📦 {fmtNum(p.stock)} ชิ้น</Chip>
-                        {map && <Chip>{map.icon} {map.name}</Chip>}
-                        <Chip tone={p.status === 'active' ? 'ok' : 'off'}>{p.status === 'active' ? '✅ ใช้งาน' : '🔴 ปิด'}</Chip>
+                      <div className="shrink-0 text-right leading-tight">
+                        <div className={`font-head text-base font-bold ${p.stock <= 0 ? 'text-danger' : p.stock <= 5 ? 'text-warn' : 'text-white'}`}>{fmtNum(p.stock)}</div>
+                        <div className="text-[0.7rem] text-faint">ชิ้น</div>
                       </div>
-                      <div className="mt-1 text-[0.7rem] text-faint">🕓 อัปเดตล่าสุด: {fmtDateTime(p.updatedAt)}</div>
+                      {(canEdit || canDel) && (
+                        <div className="flex shrink-0 gap-0.5 transition duration-200 md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
+                          {canEdit && <button className="icon-btn" title="แก้ไข" aria-label={`แก้ไข ${p.name}`} onClick={(e) => { e.stopPropagation(); setForm({ product: p }); }}>✏️</button>}
+                          {canDel && <button className="icon-btn" title="ลบ" aria-label={`ลบ ${p.name}`} onClick={(e) => { e.stopPropagation(); remove([p.id]); }}>🗑️</button>}
+                        </div>
+                      )}
                     </div>
-                    <div className="flex shrink-0 flex-col gap-1.5">
-                      <button className="btn btn-p text-xs" onClick={() => setDetailId(p.id)}>🔍 ดูรายละเอียด</button>
-                      <div className="flex gap-1.5">
-                        {canEdit && <button className="btn btn-g flex-1 text-xs" onClick={() => setForm({ product: p })}>✏️ แก้ไข</button>}
-                        {canDel && <button className="btn bg-danger/15 text-xs text-danger hover:bg-danger/25" onClick={() => remove([p.id])}>🗑️</button>}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {list.length > shown && (
-              <div className="mt-4 text-center">
-                <button className="btn btn-g" onClick={() => setShown((n) => n + PAGE)}>แสดงเพิ่ม ({fmtNum(list.length - shown)} รายการที่เหลือ)</button>
+                  );
+                })}
               </div>
-            )}
-          </>
-        )}
-      </div>
+              {list.length > shown && (
+                <div className="mt-4 text-center">
+                  <button className="btn btn-g btn-sm" onClick={() => setShown((n) => n + PAGE)}>แสดงเพิ่ม ({fmtNum(list.length - shown)} รายการที่เหลือ)</button>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
 
       {form && (
         <ProductForm key={form.product?.id ?? 'new'} product={form.product} defaultMapId={selMap} maps={mapList} shops={shopList}

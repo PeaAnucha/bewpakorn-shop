@@ -29,11 +29,10 @@ function Stat({ table, label, icon }: (typeof TABLES)[number]) {
 export default function Dashboard() {
   return (
     <div>
-      <h1 className="mb-4 font-head text-xl font-extrabold text-accent">📊 แดชบอร์ด</h1>
+      <h1 className="mb-4 font-head text-3xl font-bold tracking-tight text-white">📊 แดชบอร์ด</h1>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {TABLES.map((t) => <Stat key={t.table} {...t} />)}
       </div>
-      <p className="mt-6 text-sm text-mute">ตัวเลขด้านบนอ่านจากฐานข้อมูลจริงผ่านสิทธิ์ของผู้ใช้ที่ล็อกอิน ใช้ตรวจว่าระบบ Auth + RLS ทำงาน หน้าเต็มจะมาในเฟส 3</p>
     </div>
   );
 }

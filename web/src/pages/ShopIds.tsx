@@ -3,7 +3,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { addShopIds, deleteShopIds, errMsg, saveShopId, useMaps, useRefreshData, useShopIdsOrdered, type ShopIdInput } from '../lib/data';
 import type { MapRow, ShopIdRow } from '../lib/types';
 import ShopIdSortList from '../components/ShopIdSortList';
-import { Empty, ErrorBox, Field, MapChips, Modal, Spinner, useToast } from '../components/ui';
+import { Chip, Empty, ErrorBox, Field, MapChips, Modal, Spinner, useToast } from '../components/ui';
 
 function ShopIdForm({ row, maps, defaultMap, onClose }: { row: ShopIdRow | null; maps: MapRow[]; defaultMap: string; onClose: () => void }) {
   const toast = useToast();
@@ -147,11 +147,11 @@ export default function ShopIdsPage() {
   return (
     <div className="card">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-head text-base font-bold">🔑 Shop IDs</h1>
+        <h1 className="font-head text-2xl font-bold tracking-tight">🔑 Shop IDs</h1>
         <div className="flex flex-wrap gap-2">
           {canEdit && (
             <button
-              className={`btn text-xs text-white ${sortMode ? 'bg-danger' : 'bg-indigo-500'}`}
+              className={`btn text-xs ${sortMode ? 'btn-p' : 'btn-g'}`}
               onClick={() => { setQ(''); setPicked(new Set()); setSortMode((m) => !m); }}
             >
               {sortMode ? '✅ เสร็จสิ้นการจัดเรียง' : '↕️ จัดเรียง'}
@@ -164,7 +164,7 @@ export default function ShopIdsPage() {
       <div className="mb-3"><MapChips maps={mapList} counts={counts} total={all.length} selected={selMap} onSelect={(id) => { setSelMap(id); setPicked(new Set()); }} /></div>
       {sortMode ? (
         <>
-          <div className="mb-3 rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-xs text-info">
+          <div className="mb-3 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-accent">
             ↕️ ลากรายการ (หรือกดค้างบนมือถือ) เพื่อจัดลำดับ · ปุ่ม ⤒ ⤓ ย้ายไปบนสุด/ล่างสุด · บันทึกอัตโนมัติ · ลำดับเป็นแบบเดียวทั้งระบบ{selMap !== 'all' ? ' (เลือกแมพอยู่ จึงจัดเฉพาะลำดับของไอดีในแมพนี้ ไอดีอื่นอยู่ที่เดิม)' : ''} · {sortList.length} รายการ
           </div>
           {shops.isLoading ? <Spinner /> : !sortList.length ? <Empty icon="🔑" text="ยังไม่มี Shop ID" /> : <ShopIdSortList shops={sortList} allIds={allIds} />}
@@ -192,12 +192,12 @@ export default function ShopIdsPage() {
               {list.map((s) => (
                 <tr key={s.id} className="border-b border-line/60 hover:bg-s2/60">
                   <td className="py-2 pl-2">{canDel && <input type="checkbox" checked={picked.has(s.id)} onChange={() => setPicked((p) => toggle(p, s.id))} />}</td>
-                  <td><code className="rounded bg-s3 px-1.5 py-0.5">{s.shopId}</code></td>
+                  <td><Chip tone="id" className="text-sm">{s.shopId}</Chip></td>
                   <td>
                     <span className={revealed.has(s.id) ? 'text-ink' : 'text-faint'}>{revealed.has(s.id) ? s.password || '(ไม่มี)' : '••••••'}</span>
                     <button className="btn btn-g !ml-1.5 !px-2 !py-0.5 text-xs" onClick={() => setRevealed((r) => toggle(r, s.id))}>👁</button>
                   </td>
-                  <td>{mapOf(s.mapId) ? `${mapOf(s.mapId)!.icon ?? ''} ${mapOf(s.mapId)!.name}` : '—'}</td>
+                  <td>{mapOf(s.mapId) ? <Chip tone="map" className="text-sm">{mapOf(s.mapId)!.icon} {mapOf(s.mapId)!.name}</Chip> : '—'}</td>
                   <td className="text-mute">{s.note || '—'}</td>
                   {(canEdit || canDel) && (
                     <td className="whitespace-nowrap text-right">

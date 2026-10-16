@@ -1,15 +1,22 @@
-/** สีและฟอนต์อิงจาก UI เดิม (ธีมมืด + accent เขียว) */
+/** ธีม Green Deck: มืดเป็นหลัก ใช้สีเขียวเป็นจุดเน้นเฉพาะปุ่ม/สถานะ ยกระดับพื้นผิวด้วยความสว่างแทนเส้นขอบ */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        bg: '#0a0a18', surface: '#12121f', s2: '#1a1a2e', s3: '#22223a', s4: '#2a2a46',
-        line: '#2e2e50', line2: '#3d3d65',
-        accent: '#10b981', orange: '#ff9142', green: '#3ecf6e', danger: '#ff5c7a', warn: '#ffc845', info: '#4fc3f7',
-        ink: '#dde0ff', mute: '#8a8ab8', faint: '#4e4e78',
+        bg: '#121212', surface: '#181818', sidebar: '#000000',
+        s2: '#282828', s3: '#333333', s4: '#3d3d3d',
+        line: '#282828', line2: '#3d3d3d',
+        accent: '#1DB954', 'accent-hover': '#1ED760', green: '#1DB954',
+        orange: '#F59B23', warn: '#F59B23', danger: '#E22134', info: '#4fc3f7',
+        ink: '#FFFFFF', mute: '#B3B3B3', faint: '#8A8A8A',
       },
-      fontFamily: { sans: ['Sarabun', 'sans-serif'], head: ['Prompt', 'sans-serif'] },
+      // DM Sans ไม่มีตัวอักษรไทย จึงจับคู่กับ Noto Sans Thai (ตัวละตินใช้ DM Sans)
+      fontFamily: {
+        sans: ['"DM Sans"', '"Noto Sans Thai"', 'sans-serif'],
+        head: ['"DM Sans"', '"Noto Sans Thai"', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
     },
   },
   plugins: [],

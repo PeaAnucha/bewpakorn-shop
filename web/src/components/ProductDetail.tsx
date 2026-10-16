@@ -28,14 +28,17 @@ export default function ProductDetail({ product, maps, shops, products, ghosts, 
             <Chip tone={product.status === 'active' ? 'ok' : 'off'}>{product.status === 'active' ? 'ใช้งาน' : 'ปิด'}</Chip>
           </div>
           <p className={`mt-1 text-sm ${product.description ? 'text-mute' : 'italic text-faint'}`}>{product.description || 'ไม่มีคำอธิบาย'}</p>
-          <div className="mt-1 text-xs text-faint">ID: {product.id}</div>
+          <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-mono text-sm font-semibold text-sky-200">
+            <span className="font-sans text-xs font-bold uppercase tracking-wide text-sky-100">Product ID</span>
+            <span className="break-all">{product.id}</span>
+          </div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           ['สต็อก', <span className={low ? 'text-danger' : 'text-green'}>{fmtNum(product.stock)} ชิ้น{low ? ' ⚠️' : ''}</span>],
-          ['แมพ', map ? `${map.icon ?? ''} ${map.name}` : '—'],
-          ['Shop ID', <span className="font-mono text-accent">{shop?.shopId ?? '—'}</span>],
+          ['แมพ', map ? <Chip tone="map" className="text-sm">{map.icon ?? ''} {map.name}</Chip> : '—'],
+          ['Shop ID', shop ? <Chip tone="id" className="text-sm">{shop.shopId}</Chip> : '—'],
           ['ประเภท', product.isBundle ? '📦 Bundle' : '📌 เดี่ยว'],
         ].map(([k, v], i) => (
           <div key={i} className="rounded-lg bg-s2 p-3"><div className="text-xs text-faint">{k}</div><div className="mt-0.5 text-sm font-bold">{v}</div></div>

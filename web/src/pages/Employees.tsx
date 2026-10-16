@@ -7,7 +7,7 @@ export default function EmployeesPage() {
   const { profile } = useAuth();
   const [tab, setTab] = useState<'emp' | 'roles'>('emp');
   const isAdmin = !!profile?.isAdmin;
-  const cls = (on: boolean) => `rounded-lg border px-4 py-2 text-sm font-bold transition ${on ? 'border-accent bg-accent/15 text-accent' : 'border-line bg-s2 text-mute hover:text-ink'}`;
+  const cls = (on: boolean) => `rounded-full px-4 py-2 text-sm font-bold transition duration-200 ${on ? 'bg-accent text-black' : 'bg-s2 text-white hover:bg-s3'}`;
   return (
     <div>
       {isAdmin && (

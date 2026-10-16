@@ -75,7 +75,7 @@ export default function EmployeesTab() {
     <div className="space-y-4">
       <div className="card">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-head text-base font-bold">👥 พนักงาน</h2>
+          <h2 className="font-head text-xl font-bold tracking-tight">👥 พนักงาน</h2>
           {can('employees', 'add') && <button className="btn btn-p" onClick={() => setForm('new')}>+ เพิ่มพนักงาน</button>}
         </div>
         {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !list.length ? <Empty icon="👥" text="ยังไม่มีพนักงาน" /> : (
@@ -126,11 +126,11 @@ export default function EmployeesTab() {
 
       {isAdmin && unlinked.length > 0 && (
         <div className="card">
-          <h2 className="mb-1 font-head text-base font-bold">🔑 บัญชีที่ไม่ได้ผูกกับพนักงาน</h2>
+          <h2 className="mb-1 font-head text-xl font-bold tracking-tight">🔑 บัญชีที่ไม่ได้ผูกกับพนักงาน</h2>
           <p className="mb-3 text-xs text-mute">เช่น บัญชีผู้ดูแลระบบ</p>
           <div className="space-y-2">
             {unlinked.map((u) => (
-              <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-s2/60 p-3">
+              <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-s2 transition duration-200 hover:bg-s3 p-3">
                 <code className="rounded bg-s3 px-1.5 py-0.5 text-sm">{u.username}</code>
                 <span className="text-sm text-mute">{u.displayName}</span>
                 <div className="flex-1">{u.roles.map((r) => <RoleBadge key={r} role={r} roles={roleList} />)}</div>

@@ -30,7 +30,7 @@ function RoleForm({ role, onClose }: { role: RoleRow | null; onClose: () => void
         <input className="inp" value={name} onChange={(e) => setName(e.target.value)} readOnly={!!role} autoFocus={!role} />
       </Field>
       <Field label="ชื่อที่แสดง *"><input className="inp" value={label} onChange={(e) => setLabel(e.target.value)} autoFocus={!!role} /></Field>
-      <Field label="สี"><input className="h-10 w-20 cursor-pointer rounded border border-line bg-s2" type="color" value={color} onChange={(e) => setColor(e.target.value)} /></Field>
+      <Field label="สี"><input className="h-10 w-20 cursor-pointer rounded bg-s2" type="color" value={color} onChange={(e) => setColor(e.target.value)} /></Field>
     </Modal>
   );
 }
@@ -80,7 +80,7 @@ export default function RolesTab() {
     <div className="space-y-4">
       <div className="card">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-head text-base font-bold">🏷️ Roles</h2>
+          <h2 className="font-head text-xl font-bold tracking-tight">🏷️ Roles</h2>
           <button className="btn btn-p" onClick={() => setForm('new')}>+ เพิ่ม Role</button>
         </div>
         {!roleList.length ? <Empty icon="🏷️" text="ยังไม่มี Role" /> : (
@@ -89,7 +89,7 @@ export default function RolesTab() {
               const n = usersOf(r.name);
               const builtin = r.name === 'admin' || r.name === 'staff';
               return (
-                <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-s2/60 p-3">
+                <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-s2 transition duration-200 hover:bg-s3 p-3">
                   <span className="rounded-md px-2.5 py-1 text-sm font-bold" style={roleStyle(r.color)}>{r.label}</span>
                   <code className="rounded bg-s3 px-1.5 py-0.5 text-xs text-mute">{r.name}</code>
                   <span className="flex-1 text-xs text-mute">{n} ผู้ใช้{r.name === 'admin' && ' · มีสิทธิ์ทั้งหมดเสมอ'}</span>
@@ -105,7 +105,7 @@ export default function RolesTab() {
 
       <div className="card">
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          <h2 className="font-head text-base font-bold">🔐 สิทธิ์ของ Role</h2>
+          <h2 className="font-head text-xl font-bold tracking-tight">🔐 สิทธิ์ของ Role</h2>
           <select className="inp !w-auto min-w-[180px]" value={current} onChange={(e) => { setRole(e.target.value); setDraft(null); }}>
             {editable.map((r) => <option key={r.id} value={r.name}>{r.label || r.name}</option>)}
           </select>

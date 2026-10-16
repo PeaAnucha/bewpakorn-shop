@@ -18,8 +18,8 @@ function CommandBox({ cmd }: { cmd: string }) {
     try { await navigator.clipboard.writeText(cmd); toast('คัดลอกคำสั่งแล้ว ✅'); } catch { toast('คัดลอกไม่ได้ ให้เลือกข้อความแล้วคัดลอกเอง', 'error'); }
   }
   return (
-    <div className="mt-3 rounded-lg border border-info/30 bg-info/10 p-3">
-      <div className="mb-1.5 text-xs font-bold text-info">คำสั่งสำหรับรันบนเครื่องคุณ</div>
+    <div className="mt-3 rounded-lg border border-accent/30 bg-accent/10 p-3">
+      <div className="mb-1.5 text-xs font-bold text-accent">คำสั่งสำหรับรันบนเครื่องคุณ</div>
       <pre className="whitespace-pre-wrap break-all rounded bg-bg p-2 font-mono text-xs text-ink">{cmd}</pre>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-xs text-mute">เปิด terminal ในโฟลเดอร์หลักของโปรเจค (ที่มีไฟล์ .env) แล้ววางคำสั่งนี้</span>
