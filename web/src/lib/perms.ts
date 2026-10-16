@@ -5,7 +5,8 @@ export type PermMap = Record<string, Action[]>;
 export const PAGES: { key: string; label: string; actions: Action[]; note?: string }[] = [
   { key: 'dashboard', label: '📊 Dashboard', actions: ['view'] },
   { key: 'maps', label: '🗺️ แมพ', actions: ['view', 'add', 'edit', 'delete'], note: 'แก้ไข = จัดลำดับแมพได้ด้วย' },
-  { key: 'products', label: '🎁 สินค้า', actions: ['view', 'add', 'edit', 'delete', 'export'], note: 'แก้ไข = นับสต็อกและจัดลำดับสินค้าได้ด้วย' },
+  { key: 'products', label: '🎁 สินค้า', actions: ['view', 'add', 'edit', 'delete', 'export'], note: 'แก้ไข = จัดลำดับสินค้าได้ด้วย' },
+  { key: 'stockcount', label: '🧮 นับสต็อก', actions: ['view', 'edit'], note: 'แก้ไข = บันทึกจำนวนและสถานะรอบนับได้' },
   { key: 'shopids', label: '🔑 Shop IDs', actions: ['view', 'add', 'edit', 'delete'], note: 'ดู = เห็นรหัสผ่านไอดีด้วย · แก้ไข = จัดลำดับได้ด้วย' },
   { key: 'employees', label: '👥 พนักงาน & ยศ', actions: ['view', 'add', 'edit', 'delete'] },
 ];

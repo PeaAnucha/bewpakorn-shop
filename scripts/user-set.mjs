@@ -1,5 +1,5 @@
 // สร้าง/แก้บัญชีผู้ใช้ (ต้องใช้ secret key จึงรันบนเครื่องคุณเท่านั้น ไม่ผ่านหน้าเว็บ)
-//   npm run user:set -- "username" "PIN" --roles "staff,admin_สำรอง" --employee "<id พนักงาน>" --name "ชื่อที่แสดง"
+//   npm run user:set -- "username" "PIN" --roles "staff,admin_สำรอง" --employee "<id พนักงาน>" --name "ชื่อที่แสดง" --avatar "https://..."
 //   npm run user:set -- "username" "PIN ใหม่"        (ถ้าบัญชีมีอยู่แล้ว = รีเซ็ต PIN)
 //   npm run user:set -- "username" --roles "staff"    (แก้เฉพาะ Role โดยไม่เปลี่ยน PIN)
 // หน้าเว็บ (พนักงาน → สร้างบัญชี / รีเซ็ต PIN) จะสร้างคำสั่งนี้ให้คัดลอกไปรัน
@@ -16,7 +16,7 @@ for (let i = 0; i < args.length; i++) {
 const [username, pin] = pos;
 const fail = (m) => { console.error('❌ ' + m); process.exit(1); };
 
-if (!username) fail('ใช้: npm run user:set -- "username" "PIN" [--roles "a,b"] [--employee "id"] [--name "ชื่อ"]');
+if (!username) fail('ใช้: npm run user:set -- "username" "PIN" [--roles "a,b"] [--employee "id"] [--name "ชื่อ"] [--avatar "URL รูป"]');
 if (pin !== undefined && pin.trim().length < 6) fail('PIN ต้องมีอย่างน้อย 6 ตัวอักษร');
 const { SUPABASE_URL, SUPABASE_SECRET_KEY } = process.env;
 if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) fail('ตั้งค่า SUPABASE_URL และ SUPABASE_SECRET_KEY ในไฟล์ .env ก่อน (รันในโฟลเดอร์หลักของโปรเจค)');
@@ -71,12 +71,13 @@ const patch = { auth_user_id: authId };
 if (roles) patch.roles = roles;
 if (flags.employee) patch.employee_id = flags.employee;
 if (flags.name) patch.display_name = flags.name;
+if (flags.avatar !== undefined) patch.avatar_url = flags.avatar.trim() || null;
 if (row) {
   const { error } = await sb.from('app_users').update(patch).eq('id', row.id);
   if (error) fail('อัปเดตข้อมูลผู้ใช้ไม่สำเร็จ: ' + error.message);
   console.log(`✓ อัปเดตผู้ใช้ "${row.username}"`);
 } else {
-  const { error } = await sb.from('app_users').insert({ username: username.trim(), roles: roles ?? ['staff'], display_name: flags.name ?? null, employee_id: flags.employee ?? null, auth_user_id: authId });
+  const { error } = await sb.from('app_users').insert({ username: username.trim(), roles: roles ?? ['staff'], display_name: flags.name ?? null, avatar_url: flags.avatar?.trim() || null, employee_id: flags.employee ?? null, auth_user_id: authId });
   if (error) fail('เพิ่มข้อมูลผู้ใช้ไม่สำเร็จ: ' + error.message);
   console.log(`✓ เพิ่มผู้ใช้ "${username.trim()}" (roles: ${(roles ?? ['staff']).join(', ')})`);
 }

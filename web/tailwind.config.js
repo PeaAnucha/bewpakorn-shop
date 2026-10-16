@@ -9,7 +9,7 @@ export default {
         line: '#282828', line2: '#3d3d3d',
         accent: '#1DB954', 'accent-hover': '#1ED760', green: '#1DB954',
         orange: '#F59B23', warn: '#F59B23', danger: '#E22134', info: '#4fc3f7',
-        ink: '#FFFFFF', mute: '#B3B3B3', faint: '#8A8A8A',
+        ink: '#FFFFFF', mute: '#D0D0D0', faint: '#A8A8A8',
       },
       // DM Sans ไม่มีตัวอักษรไทย จึงจับคู่กับ Noto Sans Thai (ตัวละตินใช้ DM Sans)
       fontFamily: {

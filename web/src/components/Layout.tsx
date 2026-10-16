@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { NAV } from '../nav';
 import ChangePin from './ChangePin';
+import ProfileAvatarModal from './ProfileAvatarModal';
 import VantaBackground from './VantaBackground';
 
 function Avatar({ src, name }: { src: string | null; name: string }) {
@@ -16,6 +17,7 @@ function Avatar({ src, name }: { src: string | null; name: string }) {
 export default function Layout() {
   const { profile, can, signOut } = useAuth();
   const [pinOpen, setPinOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const items = NAV.filter((n) => !n.perm || can(n.perm[0], n.perm[1]));
 
   return (
@@ -32,6 +34,7 @@ export default function Layout() {
             <div className="text-sm leading-tight">
               <div className="font-bold">{profile?.displayName}</div>
               <div className="text-xs text-mute">{profile?.roles.join(', ')}</div>
+              <button type="button" className="mt-1 text-xs font-semibold text-accent hover:underline" onClick={() => setAvatarOpen(true)}>🖼️ เปลี่ยนรูปของฉัน</button>
             </div>
           </div>
         </div>
@@ -60,6 +63,7 @@ export default function Layout() {
         </div>
       </main>
       {pinOpen && <ChangePin onClose={() => setPinOpen(false)} />}
+      {avatarOpen && <ProfileAvatarModal onClose={() => setAvatarOpen(false)} />}
     </div>
   );
 }

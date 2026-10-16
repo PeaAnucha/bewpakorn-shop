@@ -21,6 +21,7 @@ interface AuthCtx {
   profile: Profile | null;
   /** เช็กสิทธิ์ เหมือน can(page, action) ในระบบเดิม (admin ทำได้ทุกอย่าง) */
   can: (page: string, action: Action) => boolean;
+  setAvatarUrl: (url: string | null) => void;
   signIn: (username: string, pin: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 }
@@ -81,6 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (page: string, action: Action) => !!profile && (profile.isAdmin || (perms[page] ?? []).includes(action)),
     [profile, perms],
   );
+  const setAvatarUrl = useCallback((url: string | null) => {
+    setProfile((current) => current ? { ...current, avatarUrl: url } : current);
+  }, []);
 
   // ไม่ตั้ง loading ตรงนี้ เพราะจะทำให้หน้าล็อกอินถูกถอดออกแล้วข้อความผิดพลาดหายไป
   const signIn = useCallback(async (username: string, pin: string) => {
@@ -90,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => { await supabase.auth.signOut(); }, []);
 
-  const value = useMemo(() => ({ loading, session, profile, can, signIn, signOut }), [loading, session, profile, can, signIn, signOut]);
+  const value = useMemo(() => ({ loading, session, profile, can, setAvatarUrl, signIn, signOut }), [loading, session, profile, can, setAvatarUrl, signIn, signOut]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

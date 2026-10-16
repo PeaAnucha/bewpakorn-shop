@@ -3,11 +3,11 @@
 // ห้ามอักขระที่ทำให้คำสั่งถูกตีความผิดใน cmd/PowerShell/bash
 const UNSAFE = /["'`$%\\\r\n]/;
 
-export interface UserSetInput { username: string; pin?: string; roles?: string[]; employeeId?: string | null; displayName?: string }
+export interface UserSetInput { username: string; pin?: string; roles?: string[]; employeeId?: string | null; displayName?: string; avatarUrl?: string }
 
 export function userSetCommand(o: UserSetInput): { ok: true; cmd: string } | { ok: false; error: string } {
   const fields: [string, string | undefined][] = [
-    ['username', o.username], ['PIN', o.pin], ['Role', o.roles?.join(',')], ['รหัสพนักงาน', o.employeeId ?? undefined], ['ชื่อที่แสดง', o.displayName],
+    ['username', o.username], ['PIN', o.pin], ['Role', o.roles?.join(',')], ['รหัสพนักงาน', o.employeeId ?? undefined], ['ชื่อที่แสดง', o.displayName], ['URL รูปโปรไฟล์', o.avatarUrl],
   ];
   for (const [label, v] of fields) if (v !== undefined && UNSAFE.test(v)) return { ok: false, error: `${label} มีอักขระที่ใช้ในคำสั่งไม่ได้ (เครื่องหมายคำพูด ` + "` $ % \\" + ')' };
   if (!o.username.trim()) return { ok: false, error: 'กรุณากรอก username' };
@@ -18,5 +18,6 @@ export function userSetCommand(o: UserSetInput): { ok: true; cmd: string } | { o
   if (o.roles?.length) parts.push('--roles', q(o.roles.join(',')));
   if (o.employeeId) parts.push('--employee', q(o.employeeId));
   if (o.displayName?.trim()) parts.push('--name', q(o.displayName));
+  if (o.avatarUrl?.trim()) parts.push('--avatar', q(o.avatarUrl));
   return { ok: true, cmd: parts.join(' ') };
 }

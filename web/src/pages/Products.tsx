@@ -5,12 +5,53 @@ import ProductDetail from '../components/ProductDetail';
 import ProductForm from '../components/ProductForm';
 import ProductSortList from '../components/ProductSortList';
 import { Chip, Empty, ErrorBox, MapChips, Menu, Spinner, Thumb, useToast } from '../components/ui';
-import { deleteProducts, errMsg, useGhosts, useMaps, useProducts, useRefreshData, useShopIdsOrdered } from '../lib/data';
+import { deleteProducts, errMsg, saveProduct, useGhosts, useMaps, useProducts, useRefreshData, useShopIdsOrdered } from '../lib/data';
 import { downloadCsv, fmtNum, today } from '../lib/format';
 import { emptyShopIds, filterSortProducts, type SortKey, type TypeTab } from '../lib/products';
 import type { Product } from '../lib/types';
 
 const PAGE = 100;
+
+function ProductQuickEdit({ product, onClose }: { product: Product; onClose: () => void }) {
+  const toast = useToast();
+  const refresh = useRefreshData();
+  const [stock, setStock] = useState(String(product.stock));
+  const [thumbnail, setThumbnail] = useState(product.thumbnail ?? '');
+  const [busy, setBusy] = useState(false);
+
+  async function submit() {
+    setBusy(true);
+    try {
+      await saveProduct(product.id, {
+        name: product.name, mapId: product.mapId ?? '', shopIdRef: product.shopIdRef ?? '',
+        stock: product.isBundle ? product.stock : Math.max(0, parseInt(stock, 10) || 0),
+        description: product.description ?? '', status: product.status, thumbnail: thumbnail.trim(),
+        isBundle: product.isBundle, bundleItems: product.bundleItems ?? [], sortOrder: product.sortOrder,
+      });
+      await refresh();
+      toast('บันทึกสต็อกและรูปสินค้าแล้ว ✅');
+      onClose();
+    } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="border-t border-line bg-s2/70 px-4 py-3" onClick={(e) => e.stopPropagation()}>
+      <div className="grid gap-3 sm:grid-cols-[minmax(120px,180px)_minmax(220px,1fr)_auto] sm:items-end">
+        <label className="text-xs font-semibold text-mute">จำนวนสต็อก{product.isBundle && <span className="ml-1 text-faint">(คำนวณอัตโนมัติ)</span>}
+          <input className="inp mt-1" type="number" min={0} value={stock} disabled={product.isBundle || busy} onChange={(e) => setStock(e.target.value)} />
+        </label>
+        <label className="text-xs font-semibold text-mute">URL รูปสินค้า
+          <input className="inp mt-1" type="url" value={thumbnail} disabled={busy} onChange={(e) => setThumbnail(e.target.value)} placeholder="https://…" />
+        </label>
+        <div className="flex gap-2 sm:justify-end">
+          <button type="button" className="btn btn-g btn-sm" disabled={busy} onClick={onClose}>ยกเลิก</button>
+          <button type="button" className="btn btn-p btn-sm" disabled={busy} onClick={submit}>{busy ? 'กำลังบันทึก…' : '💾 บันทึกด่วน'}</button>
+        </div>
+      </div>
+      {thumbnail && <div className="mt-2 flex items-center gap-2 text-xs text-mute"><Thumb src={thumbnail} className="h-10 w-10" />ตัวอย่างรูป</div>}
+    </div>
+  );
+}
 
 export default function ProductsPage() {
   const { can } = useAuth();
@@ -31,6 +72,7 @@ export default function ProductsPage() {
   const [sortMode, setSortMode] = useState(false);
   const [form, setForm] = useState<{ product: Product | null } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [quickEditId, setQuickEditId] = useState<string | null>(null);
   const [bulk, setBulk] = useState(false);
 
   const mapList = maps.data ?? [];
@@ -178,8 +220,9 @@ export default function ProductsPage() {
                   const map = mapList.find((m) => m.id === p.mapId);
                   const shop = shopList.find((s) => s.id === p.shopIdRef);
                   return (
-                    <div key={p.id} onClick={() => setDetailId(p.id)}
-                      className={`group flex cursor-pointer items-center gap-3 border-b border-line/50 px-3 py-2.5 transition duration-200 last:border-b-0 hover:bg-s2 ${p.status === 'active' ? '' : 'opacity-60'}`}>
+                    <div key={p.id} className="border-b border-line/50 last:border-b-0">
+                    <div onClick={() => setDetailId(p.id)}
+                      className={`group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition duration-200 hover:bg-s2 ${p.status === 'active' ? '' : 'opacity-60'}`}>
                       {canDel && <input type="checkbox" checked={picked.has(p.id)} onClick={(e) => e.stopPropagation()} onChange={() => togglePick(p.id)} />}
                       <Thumb src={p.thumbnail} className="h-11 w-11" />
                       <div className="min-w-0 flex-1">
@@ -193,16 +236,18 @@ export default function ProductsPage() {
                           {selMap === 'all' && map && <Chip tone="map" className="text-sm">{map.icon} {map.name}</Chip>}
                         </div>
                       </div>
-                      <div className="shrink-0 text-right leading-tight">
-                        <div className={`font-head text-base font-bold ${p.stock <= 0 ? 'text-danger' : p.stock <= 5 ? 'text-warn' : 'text-white'}`}>{fmtNum(p.stock)}</div>
-                        <div className="text-[0.7rem] text-faint">ชิ้น</div>
+                      <div className="min-w-[76px] shrink-0 rounded-lg border border-white/10 bg-s2/90 px-2.5 py-2 text-center">
+                        <div className={`font-head text-xl font-extrabold leading-none tabular-nums sm:text-2xl ${p.stock <= 0 ? 'text-danger' : p.stock <= 5 ? 'text-warn' : 'text-white'}`}>{fmtNum(p.stock)}</div>
+                        <div className="mt-1 text-xs font-bold tracking-wide text-slate-200">ชิ้น</div>
                       </div>
                       {(canEdit || canDel) && (
                         <div className="flex shrink-0 gap-0.5 transition duration-200 md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
-                          {canEdit && <button className="icon-btn" title="แก้ไข" aria-label={`แก้ไข ${p.name}`} onClick={(e) => { e.stopPropagation(); setForm({ product: p }); }}>✏️</button>}
+                          {canEdit && <button className="icon-btn" title="แก้สต็อก/รูปด่วน" aria-label={`แก้สต็อกและรูป ${p.name}`} aria-expanded={quickEditId === p.id} onClick={(e) => { e.stopPropagation(); setQuickEditId((id) => id === p.id ? null : p.id); }}>✏️</button>}
                           {canDel && <button className="icon-btn" title="ลบ" aria-label={`ลบ ${p.name}`} onClick={(e) => { e.stopPropagation(); remove([p.id]); }}>🗑️</button>}
                         </div>
                       )}
+                    </div>
+                    {quickEditId === p.id && canEdit && <ProductQuickEdit product={p} onClose={() => setQuickEditId(null)} />}
                     </div>
                   );
                 })}

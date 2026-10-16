@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { orderShopIds } from './products.ts';
 import { toEmail, toPassword } from './auth';
 import type { PermMap } from './perms';
-import type { BundleItem, Ghost, MapRow, Product, ShopIdRow } from './types';
+import type { BundleItem, Ghost, MapRow, Product, ShopIdRow, StockCountRound, StockHistoryEntry } from './types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -40,13 +40,54 @@ export function useShopIdsOrdered() {
   const data = useMemo(() => (q.data ? orderShopIds(q.data) : q.data), [q.data]);
   return { ...q, data };
 }
+/** ข้อมูล Account ที่หน้า StockCount ต้องใช้ โดยไม่ดึง password/note ของ Shop ID */
+export function useStockCountShopIds() {
+  return useQuery({
+    queryKey: ['stockCountShopIds'],
+    queryFn: async (): Promise<ShopIdRow[]> => {
+      const { data, error } = await supabase.rpc('get_stock_count_shop_ids');
+      if (error) throw error;
+      return orderShopIds((data ?? []).map((r: any) => ({
+        id: r.id, shopId: r.shop_id, password: null, mapId: r.map_id, note: null, sortOrder: r.sort_order,
+      })));
+    },
+  });
+}
 export const useProducts = () => useQuery({ queryKey: ['products'], queryFn: async () => (await fetchAll('products', 'created_at')).map(toProduct) });
 export const useGhosts = () => useQuery({ queryKey: ['ghosts'], queryFn: async () => (await fetchAll('ghost_items', 'name')).map(toGhost) });
+export const useStockHistory = () => useQuery({
+  queryKey: ['stockHistory'],
+  queryFn: async (): Promise<StockHistoryEntry[]> => {
+    const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase.from('stock_history').select('id, item_type, item_id, item_name, action, old_stock, new_stock, actor_username, created_at')
+      .gte('created_at', since).order('created_at', { ascending: false }).limit(200);
+    if (error) throw error;
+    return (data ?? []).map((r) => ({ id: r.id, itemType: r.item_type, itemId: r.item_id, itemName: r.item_name,
+      action: r.action, oldStock: r.old_stock, newStock: r.new_stock, actorUsername: r.actor_username, createdAt: r.created_at }));
+  },
+});
+export const useStockCountRound = () => useQuery({
+  queryKey: ['stockCountRound'],
+  refetchOnWindowFocus: false,
+  queryFn: async (): Promise<StockCountRound | null> => {
+    const { data, error } = await supabase.from('stock_count_rounds').select('counted_ids, skipped_map_ids, updated_at').maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      countedIds: Array.isArray(data.counted_ids) ? data.counted_ids.filter((id): id is string => typeof id === 'string') : [],
+      skippedMapIds: Array.isArray(data.skipped_map_ids) ? data.skipped_map_ids.filter((id): id is string => typeof id === 'string') : [],
+      updatedAt: data.updated_at,
+    };
+  },
+});
+export async function saveStockCountRound(countedIds: string[], skippedMapIds: string[]) {
+  return run(supabase.rpc('save_stock_count_round', { p_counted_ids: countedIds, p_skipped_map_ids: skippedMapIds }));
+}
 
 /** รีเฟรชข้อมูลทุกชุดหลังบันทึก (สต็อกเซ็ต/ghost เปลี่ยนตามกันได้) */
 export function useRefreshData() {
   const qc = useQueryClient();
-  return () => Promise.all(['maps', 'shopIds', 'products', 'ghosts', 'count', 'employees', 'roles', 'appUsers', 'permRows'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
+  return () => Promise.all(['maps', 'shopIds', 'products', 'ghosts', 'stockHistory', 'stockCountRound', 'count', 'employees', 'roles', 'appUsers', 'permRows'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
 }
 
 // ───────── จัดการข้อผิดพลาด ─────────
@@ -121,11 +162,11 @@ export async function saveProduct(id: string | null, v: ProductInput): Promise<s
     }),
   );
 }
-export interface BulkProductInput { name: string; mapId: string; shopIdRef: string; stock: number; description: string; status: string }
+export interface BulkProductInput { name: string; mapId: string; shopIdRef: string; stock: number; description: string; status: string; thumbnail: string }
 export async function addProducts(items: BulkProductInput[]) {
   const rows = items.map((v) => ({
     name: v.name, map_id: v.mapId || null, shop_id_ref: v.shopIdRef || null, stock: v.stock,
-    description: v.description || null, status: v.status, is_bundle: false, bundle_items: [],
+    description: v.description || null, status: v.status, image_url: v.thumbnail.trim() || null, is_bundle: false, bundle_items: [],
   }));
   await run(supabase.from('products').insert(rows));
 }
@@ -200,8 +241,12 @@ export async function saveRolePermissions(role: string, perms: PermMap) {
   return run(supabase.rpc('save_role_permissions', { p_role: role, p_perms: perms }));
 }
 
-export async function saveAccount(id: string, v: { roles: string[]; displayName: string; employeeId: string }) {
-  expectRows(await run(supabase.from('app_users').update({ roles: v.roles, display_name: v.displayName.trim() || null, employee_id: v.employeeId || null }).eq('id', id).select('id')), 1);
+export async function saveAccount(id: string, v: { roles: string[]; displayName: string; employeeId: string; avatarUrl: string }) {
+  expectRows(await run(supabase.from('app_users').update({ roles: v.roles, display_name: v.displayName.trim() || null, employee_id: v.employeeId || null, avatar_url: v.avatarUrl.trim() || null }).eq('id', id).select('id')), 1);
+}
+/** ผู้ใช้แก้ได้เฉพาะรูปของบัญชีที่ล็อกอินอยู่ (ตรวจซ้ำด้วย RPC ฝั่งฐานข้อมูล) */
+export async function saveMyAvatarUrl(avatarUrl: string) {
+  return run(supabase.rpc('update_my_avatar_url', { p_avatar_url: avatarUrl.trim() || null }));
 }
 /** ถอดบัญชี: ลบข้อมูลผู้ใช้ในระบบ (ล็อกอินเข้าแอปไม่ได้อีก) */
 export async function removeAccount(id: string) {

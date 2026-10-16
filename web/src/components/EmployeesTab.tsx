@@ -4,6 +4,13 @@ import { deleteEmployee, errMsg, removeAccount, saveEmployee, useAppUsers, useEm
 import AccountModal, { RoleBadge } from './AccountModal';
 import { Chip, Empty, ErrorBox, Field, Modal, Spinner, useToast } from './ui';
 
+function UserAvatar({ src, name }: { src: string | null; name: string }) {
+  return <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-accent/15 text-sm font-bold text-accent">
+    <span>{name.trim().slice(0, 1).toUpperCase() || '?'}</span>
+    {src && <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" onError={(e) => e.currentTarget.remove()} />}
+  </div>;
+}
+
 function EmployeeForm({ emp, onClose }: { emp: Employee | null; onClose: () => void }) {
   const toast = useToast();
   const refresh = useRefreshData();
@@ -94,7 +101,7 @@ export default function EmployeesTab() {
                   return (
                     <tr key={e.id} className="border-b border-line/60 align-top hover:bg-s2/60">
                       <td className="py-2.5 pl-2 text-faint">{i + 1}</td>
-                      <td><strong>{e.name}</strong>{e.email && <div className="text-xs text-mute">{e.email}</div>}</td>
+                      <td><div className="flex items-center gap-2.5"><UserAvatar src={u?.avatarUrl ?? null} name={u?.displayName || e.name} /><div><strong>{e.name}</strong>{e.email && <div className="text-xs text-mute">{e.email}</div>}</div></div></td>
                       <td>
                         {e.pronoun && <span className="mr-1 rounded-full bg-accent/15 px-2 py-0.5 text-xs font-bold text-accent">{e.pronoun}</span>}
                         {e.rank && <span className="rounded-md bg-s3 px-2 py-0.5 text-xs text-mute">{e.rank}</span>}
@@ -131,6 +138,7 @@ export default function EmployeesTab() {
           <div className="space-y-2">
             {unlinked.map((u) => (
               <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-s2 transition duration-200 hover:bg-s3 p-3">
+                <UserAvatar src={u.avatarUrl} name={u.displayName || u.username} />
                 <code className="rounded bg-s3 px-1.5 py-0.5 text-sm">{u.username}</code>
                 <span className="text-sm text-mute">{u.displayName}</span>
                 <div className="flex-1">{u.roles.map((r) => <RoleBadge key={r} role={r} roles={roleList} />)}</div>

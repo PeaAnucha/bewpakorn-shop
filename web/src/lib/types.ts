@@ -49,3 +49,21 @@ export interface Ghost {
   sortOrder: number | null;
   updatedAt: string;
 }
+
+export interface StockHistoryEntry {
+  id: number;
+  itemType: 'product' | 'ghost';
+  itemId: string;
+  itemName: string;
+  action: 'created' | 'updated' | 'deleted';
+  oldStock: number | null;
+  newStock: number | null;
+  actorUsername: string | null;
+  createdAt: string;
+}
+
+export interface StockCountRound {
+  countedIds: string[];
+  skippedMapIds: string[];
+  updatedAt: string;
+}

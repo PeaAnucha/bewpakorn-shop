@@ -16,5 +16,5 @@ export const NAV: NavItem[] = [
   { path: 'shopids', icon: '🔑', label: 'ไอดีร้าน', perm: ['shopids', 'view'] },
   { path: 'employees', icon: '👥', label: 'พนักงาน', perm: ['employees', 'view'] },
   { path: 'schedule', icon: '📅', label: 'ตารางกะ' }, // ลิงก์ไปเว็บตารางกะแยก ทุกคนที่ล็อกอินเห็น
-  { path: 'stockcount', icon: '🧮', label: 'นับสต็อก', perm: ['products', 'edit'] },
+  { path: 'stockcount', icon: '🧮', label: 'นับสต็อก', perm: ['stockcount', 'view'] },
 ];

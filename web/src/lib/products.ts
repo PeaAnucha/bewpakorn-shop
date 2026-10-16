@@ -57,6 +57,7 @@ export function filterSortProducts(products: Product[], maps: MapRow[], shopIds:
       (p) =>
         p.name.toLowerCase().includes(q) ||
         mapName(p.mapId).toLowerCase().includes(q) ||
+        (maps.find((m) => m.id === p.mapId)?.id ?? '').toLowerCase().includes(q) ||
         shopText(p.shopIdRef).toLowerCase().includes(q),
     );
   }
