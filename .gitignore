@@ -5,3 +5,5 @@ out
 dist
 backups
 .wrangler
+.npm-cache/
+*.tsbuildinfo
