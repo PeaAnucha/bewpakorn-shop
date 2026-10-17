@@ -209,9 +209,9 @@ export default function ProductsPage() {
 
           {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !list.length ? <Empty icon="🎁" text="ไม่พบสินค้า" /> : (
             <>
-              <div className="overflow-hidden rounded-lg bg-surface">
+              <div className="space-y-2">
                 {canDel && (
-                  <label className="flex cursor-pointer items-center gap-3 border-b border-line px-3 py-2 text-xs font-bold uppercase tracking-[0.1em] text-mute">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 bg-[#242424]/90 px-3 py-2 text-xs font-bold uppercase tracking-[0.1em] text-mute">
                     <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(list.map((p) => p.id)))} />
                     เลือกทั้งหมด
                   </label>
@@ -220,9 +220,9 @@ export default function ProductsPage() {
                   const map = mapList.find((m) => m.id === p.mapId);
                   const shop = shopList.find((s) => s.id === p.shopIdRef);
                   return (
-                    <div key={p.id} className="border-b border-line/50 last:border-b-0">
+                    <div key={p.id} className="overflow-hidden rounded-lg border border-lime-300/20 bg-[#242424]/90 shadow-sm shadow-black/20 transition-colors hover:border-lime-300/45">
                     <div onClick={() => setDetailId(p.id)}
-                      className={`group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition duration-200 hover:bg-s2 ${p.status === 'active' ? '' : 'opacity-60'}`}>
+                      className={`group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition duration-200 hover:bg-white/[0.04] ${p.status === 'active' ? '' : 'opacity-60'}`}>
                       {canDel && <input type="checkbox" checked={picked.has(p.id)} onClick={(e) => e.stopPropagation()} onChange={() => togglePick(p.id)} />}
                       <Thumb src={p.thumbnail} className="h-11 w-11" />
                       <div className="min-w-0 flex-1">

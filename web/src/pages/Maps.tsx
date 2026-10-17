@@ -58,7 +58,7 @@ function MapCard({ map, index, canEdit, canDelete, onEdit, onDelete, handle }: C
         {canDelete && <button className="btn !px-2 !py-1 text-xs bg-danger/15 text-danger hover:bg-danger/25" onClick={onDelete}>🗑️</button>}
       </div>
       <div className="mt-5 text-4xl">{map.icon || '🗺️'}</div>
-      <div className="mt-2 font-head text-base font-bold text-amber-200">{map.name}</div>
+      <div className="mt-2 font-head text-base font-bold text-teal-200">{map.name}</div>
       <div className="mt-1 text-xs text-mute">{map.description || '—'}</div>
     </div>
   );

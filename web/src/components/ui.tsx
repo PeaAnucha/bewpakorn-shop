@@ -85,7 +85,7 @@ export const Chip = ({ children, tone = 'default', className = '' }: { children:
   const tones = {
     default: 'bg-s3 text-mute', ok: 'bg-green/15 text-green', low: 'bg-danger/15 text-danger', shop: 'bg-accent/15 text-accent', off: 'bg-danger/10 text-danger',
     id: 'border border-sky-300/25 bg-sky-400/15 font-mono text-sky-200',
-    map: 'border border-amber-300/25 bg-amber-400/15 text-amber-200',
+    map: 'border border-teal-300/25 bg-teal-400/15 text-teal-200',
   };
   return <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-xs font-semibold ${tones[tone]} ${className}`}>{children}</span>;
 };
@@ -118,7 +118,7 @@ export function MapChips({ maps, counts, total, selected, onSelect }: {
   }, [maps.length, total]);
 
   const cls = (on: boolean) =>
-    `cursor-pointer whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-200 ${on ? 'bg-accent text-black' : 'bg-amber-400/10 text-amber-200 ring-1 ring-amber-300/20 hover:bg-amber-400/20'}`;
+    `cursor-pointer whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-200 ${on ? 'bg-accent text-black' : 'bg-teal-400/10 text-teal-200 ring-1 ring-teal-300/20 hover:bg-teal-400/20'}`;
   const count = (n: number, on: boolean) => <span className={`ml-1 text-xs ${on ? 'opacity-70' : 'text-mute'}`}>{n}</span>;
   return (
     <div className="flex items-start gap-2">
