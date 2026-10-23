@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { Chip, Empty, ErrorBox, Spinner, Thumb, useToast } from '../components/ui';
-import { errMsg, saveStockCount, saveStockCountRound, useGhosts, useMaps, useProducts, useRefreshData, useStockCountShopIds, useStockCountRound, useStockHistory } from '../lib/data';
+import { errMsg, saveStockCount, saveStockCountRound, setShopIdMapBan, useGhosts, useMaps, useProducts, useRefreshData, useShopIdMapBans, useStockCountShopIds, useStockCountRound } from '../lib/data';
 import { fmtNum } from '../lib/format';
 import { mapCtx, sortProducts, type SortKey } from '../lib/products';
 import type { Ghost, MapRow, Product } from '../lib/types';
@@ -9,6 +10,26 @@ import type { Ghost, MapRow, Product } from '../lib/types';
 type TypeF = '' | 'normal' | 'bundle' | 'ghost';
 type StockF = '' | 'low' | 'zero' | 'ok';
 type CountF = 'all' | 'pending' | 'counted';
+interface StockFilters {
+  q: string; mapF: string; acctF: string; typeF: TypeF; stockF: StockF;
+  productCountF: CountF; ghostCountF: CountF; sort: SortKey;
+}
+const DEFAULT_FILTERS: StockFilters = { q: '', mapF: '', acctF: '', typeF: '', stockF: '', productCountF: 'pending', ghostCountF: 'pending', sort: 'custom' };
+function loadStockFilters(username: string): StockFilters {
+  try {
+    const saved = JSON.parse(localStorage.getItem(`stockcount-filters:${username}`) ?? '{}') as Partial<StockFilters>;
+    return {
+      q: typeof saved.q === 'string' ? saved.q : DEFAULT_FILTERS.q,
+      mapF: typeof saved.mapF === 'string' ? saved.mapF : DEFAULT_FILTERS.mapF,
+      acctF: typeof saved.acctF === 'string' ? saved.acctF : DEFAULT_FILTERS.acctF,
+      typeF: ['', 'normal', 'bundle', 'ghost'].includes(saved.typeF ?? '') ? saved.typeF as TypeF : DEFAULT_FILTERS.typeF,
+      stockF: ['', 'low', 'zero', 'ok'].includes(saved.stockF ?? '') ? saved.stockF as StockF : DEFAULT_FILTERS.stockF,
+      productCountF: ['all', 'pending', 'counted'].includes(saved.productCountF ?? '') ? saved.productCountF as CountF : DEFAULT_FILTERS.productCountF,
+      ghostCountF: ['all', 'pending', 'counted'].includes(saved.ghostCountF ?? '') ? saved.ghostCountF as CountF : DEFAULT_FILTERS.ghostCountF,
+      sort: ['custom', 'name', 'stock-asc', 'stock-desc', 'map'].includes(saved.sort ?? '') ? saved.sort as SortKey : DEFAULT_FILTERS.sort,
+    };
+  } catch { return DEFAULT_FILTERS; }
+}
 const LOW = 5;
 const GHOST_PREFIX = '__ghost__:';
 const ghostKey = (name: string) => name.trim().toLocaleLowerCase();
@@ -20,14 +41,15 @@ function referencedGhostName(item: Product['bundleItems'][number]) {
 }
 
 /** ช่องกรอกจำนวน: พิมพ์ลบจนว่างได้ระหว่างแก้ไข แต่ค่าที่ส่งออกเป็นตัวเลข >= 0 เสมอ */
-function CountInput({ value, onChange, dirty, disabled }: { value: number; onChange: (n: number) => void; dirty: boolean; disabled?: boolean }) {
+function CountInput({ value, onChange, onEnter, canSubmit, dirty, disabled }: { value: number; onChange: (n: number) => void; onEnter: () => void; canSubmit: boolean; dirty: boolean; disabled?: boolean }) {
   const [text, setText] = useState(String(value));
   useEffect(() => { if ((parseInt(text, 10) || 0) !== value) setText(String(value)); }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <input type="number" min={0} inputMode="numeric" value={text} disabled={disabled}
       className={`inp min-w-0 flex-1 text-center font-head text-base font-bold ${dirty ? '!border-warn !text-warn' : ''}`}
       onChange={(e) => { setText(e.target.value); onChange(Math.max(0, parseInt(e.target.value, 10) || 0)); }}
-      onFocus={(e) => e.target.select()} />
+      onFocus={(e) => e.target.select()}
+      onKeyDown={(e) => { if (e.key === 'Enter' && canSubmit) { e.preventDefault(); onEnter(); } }} />
   );
 }
 
@@ -44,7 +66,7 @@ function CountRow({ orig, cur, onChange, onSaveNext, saving, counted, editable }
       </div>
       <div className="mt-1.5 flex items-center gap-2">
         <button className={step} aria-label="-1" disabled={!editable} onClick={() => onChange(Math.max(0, cur - 1))}>−</button>
-        <CountInput value={cur} onChange={onChange} dirty={dirty} disabled={!editable} />
+        <CountInput value={cur} onChange={onChange} onEnter={onSaveNext} canSubmit={!saving && !(counted && !dirty)} dirty={dirty} disabled={!editable} />
         <button className={step} aria-label="+1" disabled={!editable} onClick={() => onChange(cur + 1)}>+</button>
       </div>
       {editable ? <button type="button" disabled={saving || (counted && !dirty)} onClick={onSaveNext} className="btn btn-p btn-sm mt-2 w-full">
@@ -117,24 +139,21 @@ function GhostCard({ g, cur, saving, counted, editable, onChange, onSaveNext, us
 }
 
 export default function StockCountPage() {
-  const { can } = useAuth();
+  const { can, profile } = useAuth();
   const canEditCount = can('stockcount', 'edit');
+  const filterStorageKey = `stockcount-filters:${profile?.username ?? 'default'}`;
   const toast = useToast();
   const refresh = useRefreshData();
   const maps = useMaps();
   const shops = useStockCountShopIds();
+  const shopIdMapBans = useShopIdMapBans();
   const products = useProducts();
   const ghosts = useGhosts();
-  const history = useStockHistory();
   const round = useStockCountRound();
 
-  const [q, setQ] = useState('');
-  const [mapF, setMapF] = useState('');
-  const [acctF, setAcctF] = useState('');
-  const [typeF, setTypeF] = useState<TypeF>('');
-  const [stockF, setStockF] = useState<StockF>('');
-  const [productCountF, setProductCountF] = useState<CountF>('pending');
-  const [ghostCountF, setGhostCountF] = useState<CountF>('pending');
+  const [filters, setFilters] = useState<StockFilters>(() => loadStockFilters(profile?.username ?? 'default'));
+  const { q, mapF, acctF, typeF, stockF, productCountF, ghostCountF, sort } = filters;
+  const updateFilters = (patch: Partial<StockFilters>) => setFilters((current) => ({ ...current, ...patch }));
   const [countedIds, setCountedIds] = useState<Set<string>>(() => new Set());
   const [skippedMapIds, setSkippedMapIds] = useState<Set<string>>(() => new Set());
   const [roundLoaded, setRoundLoaded] = useState(false);
@@ -143,13 +162,19 @@ export default function StockCountPage() {
   const [roundSavedAt, setRoundSavedAt] = useState<string | null>(null);
   const roundInitialized = useRef(false);
   const roundSaveQueue = useRef<Promise<void>>(Promise.resolve());
-  const [sort, setSort] = useState<SortKey>('custom');
   const [pc, setPc] = useState<Record<string, number>>({}); // สินค้าที่แก้
   const [gc, setGc] = useState<Record<string, number>>({}); // ghost ที่แก้
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  const [banSaving, setBanSaving] = useState(false);
+
+  useEffect(() => {
+    try { localStorage.setItem(filterStorageKey, JSON.stringify(filters)); } catch { /* Keep filters active if browser storage is unavailable. */ }
+  }, [filterStorageKey, filters]);
 
   const mapList = maps.data ?? [];
   const shopList = shops.data ?? [];
+  const bannedPairs = useMemo(() => new Set((shopIdMapBans.data ?? []).map((ban) => `${ban.shopIdId}\u0000${ban.mapId}`)), [shopIdMapBans.data]);
+  const isProductBanned = (product: Product) => !!product.shopIdRef && !!product.mapId && bannedPairs.has(`${product.shopIdRef}\u0000${product.mapId}`);
   const ghostUsage = useMemo(() => {
     const byName = new Map((ghosts.data ?? []).map((g) => [ghostKey(g.name), g.id]));
     const out = new Map<string, Product[]>();
@@ -213,7 +238,11 @@ export default function StockCountPage() {
     const used = new Set((products.data ?? []).filter((p) => !mapF || p.mapId === mapF).map((p) => p.shopIdRef).filter(Boolean));
     return shopList.filter((s) => used.has(s.id));
   }, [products.data, shopList, mapF]);
-  useEffect(() => { if (acctF && !acctOptions.some((s) => s.id === acctF)) setAcctF(''); }, [acctOptions, acctF]);
+  useEffect(() => {
+    if (maps.isLoading || products.isLoading || shops.isLoading) return;
+    if (mapF && !mapList.some((map) => map.id === mapF)) setFilters((current) => ({ ...current, mapF: '', acctF: '' }));
+    else if (acctF && !acctOptions.some((shop) => shop.id === acctF)) setFilters((current) => ({ ...current, acctF: '' }));
+  }, [maps.isLoading, products.isLoading, shops.isLoading, mapList, mapF, acctF, acctOptions]);
 
   const stockOk = (n: number) => (stockF === 'low' ? n <= LOW : stockF === 'zero' ? n === 0 : stockF === 'ok' ? n > LOW : true);
 
@@ -252,12 +281,13 @@ export default function StockCountPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ghosts.data, ghostUsage, q, mapF, acctF, typeF, stockF, sort, gc]);
 
-  const countPList = pList.filter((p) => !p.mapId || !skippedMapIds.has(p.mapId));
+  const bannedProducts = pList.filter(isProductBanned);
+  const countPList = pList.filter((p) => (!p.mapId || !skippedMapIds.has(p.mapId)) && !isProductBanned(p));
   const countGList = gList.filter((g) => {
     const usedIn = ghostUsage.get(g.id) ?? [];
     if (!usedIn.length) return true;
     const matches = usedIn.filter((p) => (!mapF || p.mapId === mapF) && (!acctF || p.shopIdRef === acctF));
-    return matches.some((p) => !p.mapId || !skippedMapIds.has(p.mapId));
+    return matches.some((p) => (!p.mapId || !skippedMapIds.has(p.mapId)) && !isProductBanned(p));
   });
   const skippedMaps = mapList.filter((m) => skippedMapIds.has(m.id));
 
@@ -303,6 +333,33 @@ export default function StockCountPage() {
     if (!confirm(`บันทึกการเปลี่ยนแปลงสต็อก ${total} รายการ?\nAccount: ${acct}`)) return;
     if (await save(ps, gs, '__all__')) toast(`บันทึกสำเร็จ ${total} รายการ ✅`);
   }
+  const selectedPairBanned = !!(mapF && acctF && bannedPairs.has(`${acctF}\u0000${mapF}`));
+  async function toggleSelectedPairBan() {
+    if (!mapF || !acctF) return;
+    const shouldBan = !selectedPairBanned;
+    const affectedProducts = shouldBan ? (products.data ?? []).filter((product) => product.shopIdRef === acctF && product.mapId === mapF && pc[product.id] !== undefined) : [];
+    const affectedGhosts = shouldBan ? Object.keys(gc).filter((id) => {
+      const usages = ghostUsage.get(id) ?? [];
+      return usages.length > 0 && usages.every((product) => {
+        const samePair = product.shopIdRef === acctF && product.mapId === mapF;
+        const alreadyExcluded = !!(product.shopIdRef && product.mapId && bannedPairs.has(`${product.shopIdRef}\u0000${product.mapId}`));
+        return samePair || alreadyExcluded || (!!product.mapId && skippedMapIds.has(product.mapId));
+      });
+    }) : [];
+    if ((affectedProducts.length || affectedGhosts.length)
+      && !confirm(`มีรายการที่แก้ไขค้างอยู่ ${affectedProducts.length + affectedGhosts.length} รายการ การตั้งแบนจะทิ้งค่าที่ยังไม่บันทึกของรายการเหล่านี้ ดำเนินการต่อหรือไม่?`)) return;
+    setBanSaving(true);
+    try {
+      await setShopIdMapBan(acctF, mapF, shouldBan);
+      if (affectedProducts.length) setPc((current) => { const next = { ...current }; affectedProducts.forEach((product) => delete next[product.id]); return next; });
+      if (affectedGhosts.length) setGc((current) => { const next = { ...current }; affectedGhosts.forEach((id) => delete next[id]); return next; });
+      await refresh();
+      const account = shopList.find((shop) => shop.id === acctF)?.shopId ?? acctF;
+      const map = mapList.find((row) => row.id === mapF)?.name ?? 'แมพนี้';
+      toast(shouldBan ? `ตั้งสถานะแบน ${account} ใน ${map} แล้ว · ข้ามจากรอบนับ` : `ยกเลิกสถานะแบน ${account} ใน ${map} แล้ว`, 'success');
+    } catch (error) { toast(errMsg(error), 'error'); }
+    finally { setBanSaving(false); }
+  }
   function resetAll() {
     if (dirtyCount && !confirm('ยกเลิกการแก้ไขที่ยังไม่บันทึกทั้งหมด?')) return;
     setPc({}); setGc({});
@@ -312,8 +369,7 @@ export default function StockCountPage() {
     if (!confirm('เริ่มรอบนับใหม่? สถานะนับแล้วและรายการแมพที่ข้ามจะถูกล้าง แต่จำนวนสต็อกที่บันทึกแล้วจะไม่เปลี่ยน')) return;
     setCountedIds(new Set());
     setSkippedMapIds(new Set());
-    setProductCountF('pending');
-    setGhostCountF('pending');
+    updateFilters({ productCountF: 'pending', ghostCountF: 'pending' });
     toast('เริ่มรอบนับใหม่แล้ว · กำลังบันทึก…', 'info');
   }
 
@@ -330,13 +386,12 @@ export default function StockCountPage() {
     const completed = new Set(countedIds).add(key);
     const next = ordered.find((item) => !completed.has(item.key));
     if (!next) {
-      setProductCountF('counted');
-      setGhostCountF('counted');
+      updateFilters({ productCountF: 'counted', ghostCountF: 'counted' });
       toast('นับครบรายการที่แสดงแล้ว ✅');
       return;
     }
-    if (next.key.startsWith('g:')) setGhostCountF('pending');
-    else setProductCountF('pending');
+    if (next.key.startsWith('g:')) updateFilters({ ghostCountF: 'pending' });
+    else updateFilters({ productCountF: 'pending' });
     window.requestAnimationFrame(() => {
       const card = document.getElementById(next.domId);
       card?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -353,8 +408,8 @@ export default function StockCountPage() {
   const visiblePList = productCountF === 'all' ? countPList : countPList.filter((p) => !p.isBundle && countedIds.has(`p:${p.id}`) === (productCountF === 'counted'));
   const visibleGList = ghostCountF === 'all' ? countGList : countGList.filter((g) => countedIds.has(`g:${g.id}`) === (ghostCountF === 'counted'));
 
-  const loading = maps.isLoading || shops.isLoading || products.isLoading || ghosts.isLoading || round.isLoading;
-  const error = maps.error || shops.error || products.error || ghosts.error || round.error;
+  const loading = maps.isLoading || shops.isLoading || products.isLoading || ghosts.isLoading || round.isLoading || shopIdMapBans.isLoading;
+  const error = maps.error || shops.error || products.error || ghosts.error || round.error || shopIdMapBans.error;
   const sel = 'sel min-w-[130px] flex-1';
 
 
@@ -391,56 +446,44 @@ export default function StockCountPage() {
         </div>
         <p className="mb-0 mt-1 text-xs text-mute">สถานะนับแล้วและแมพที่ข้ามจะจำแยกตามบัญชี · การเปลี่ยนสต็อกจะบันทึกเมื่อกดยืนยัน</p>
       </div>
-      <details className="mb-3 rounded-lg border border-line bg-[#191919]/95">
-        <summary className="cursor-pointer select-none px-3 py-2.5 text-sm font-semibold text-sky-200">
-          🕘 ประวัติเปลี่ยนสต็อก 3 วันล่าสุด {history.data && <span className="text-xs text-mute">({history.data.length} รายการ)</span>}
-        </summary>
-        <div className="max-h-80 overflow-y-auto border-t border-line px-3">
-          {history.isLoading ? <div className="py-3 text-sm text-mute">กำลังโหลดประวัติ…</div>
-            : history.error ? <div className="py-3 text-sm text-danger">โหลดประวัติไม่ได้: {errMsg(history.error)}</div>
-              : !history.data?.length ? <div className="py-3 text-sm text-mute">ยังไม่มีประวัติในช่วง 3 วันที่ผ่านมา</div>
-                : history.data.map((entry) => (
-                  <div key={entry.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line/60 py-2 text-xs last:border-b-0">
-                    <time className="shrink-0 text-faint">{new Intl.DateTimeFormat('th-TH', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(entry.createdAt))}</time>
-                    <span className="min-w-0 flex-1 font-semibold text-ink">{entry.itemName}<span className="ml-1 text-faint">{entry.itemType === 'ghost' ? '👻' : '📦'}</span></span>
-                    <span className="text-sky-200">{entry.oldStock === null ? '—' : fmtNum(entry.oldStock)} → {entry.newStock === null ? 'ลบแล้ว' : fmtNum(entry.newStock)}</span>
-                    <span className="text-mute">{entry.actorUsername ?? 'ไม่ระบุผู้ใช้'}</span>
-                  </div>
-                ))}
-        </div>
-      </details>
+      <div className="mb-3 flex justify-end">
+        {can('history', 'view') && <Link to="/history" className="text-sm font-semibold text-sky-200 hover:text-white">🕘 เปิดหน้าประวัติเปลี่ยนสต็อก →</Link>}
+      </div>
       <div className="mb-3 flex flex-wrap gap-x-6 gap-y-3">
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="กรองสถานะสินค้าที่นับ">
           <span className="mr-1 text-xs font-bold text-mute">📦 สินค้า</span>
-          <button className={`btn btn-sm ${productCountF === 'all' ? 'btn-p' : 'btn-g'}`} aria-pressed={productCountF === 'all'} onClick={() => setProductCountF('all')}>ทั้งหมด ({countPList.length})</button>
-          <button className={`btn btn-sm ${productCountF === 'pending' ? 'btn-p' : 'btn-g'}`} aria-pressed={productCountF === 'pending'} onClick={() => setProductCountF('pending')}>ยังไม่นับ ({productCountable.length - productDone})</button>
-          <button className={`btn btn-sm ${productCountF === 'counted' ? 'btn-p' : 'btn-g'}`} aria-pressed={productCountF === 'counted'} onClick={() => setProductCountF('counted')}>นับแล้ว ({productDone})</button>
+          <button className={`btn btn-sm ${productCountF === 'all' ? 'btn-p' : 'btn-g'}`} aria-pressed={productCountF === 'all'} onClick={() => updateFilters({ productCountF: 'all' })}>ทั้งหมด ({countPList.length})</button>
+          <button className={`btn btn-sm ${productCountF === 'pending' ? 'btn-p' : 'btn-g'}`} aria-pressed={productCountF === 'pending'} onClick={() => updateFilters({ productCountF: 'pending' })}>ยังไม่นับ ({productCountable.length - productDone})</button>
+          <button className={`btn btn-sm ${productCountF === 'counted' ? 'btn-p' : 'btn-g'}`} aria-pressed={productCountF === 'counted'} onClick={() => updateFilters({ productCountF: 'counted' })}>นับแล้ว ({productDone})</button>
         </div>
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="กรองสถานะ Ghost">
           <span className="mr-1 text-xs font-bold text-orange">👻 Ghost</span>
-          <button className={`btn btn-sm ${ghostCountF === 'all' ? 'border border-orange/50 bg-orange/20 text-white' : 'btn-g'}`} aria-pressed={ghostCountF === 'all'} onClick={() => setGhostCountF('all')}>ทั้งหมด ({countGList.length})</button>
-          <button className={`btn btn-sm ${ghostCountF === 'pending' ? 'border border-orange/50 bg-orange/20 text-white' : 'btn-g'}`} aria-pressed={ghostCountF === 'pending'} onClick={() => setGhostCountF('pending')}>ยังไม่นับ ({countGList.length - ghostDone})</button>
-          <button className={`btn btn-sm ${ghostCountF === 'counted' ? 'border border-orange/50 bg-orange/20 text-white' : 'btn-g'}`} aria-pressed={ghostCountF === 'counted'} onClick={() => setGhostCountF('counted')}>นับแล้ว ({ghostDone})</button>
+          <button className={`btn btn-sm ${ghostCountF === 'all' ? 'border border-orange/50 bg-orange/20 text-white' : 'btn-g'}`} aria-pressed={ghostCountF === 'all'} onClick={() => updateFilters({ ghostCountF: 'all' })}>ทั้งหมด ({countGList.length})</button>
+          <button className={`btn btn-sm ${ghostCountF === 'pending' ? 'border border-orange/50 bg-orange/20 text-white' : 'btn-g'}`} aria-pressed={ghostCountF === 'pending'} onClick={() => updateFilters({ ghostCountF: 'pending' })}>ยังไม่นับ ({countGList.length - ghostDone})</button>
+          <button className={`btn btn-sm ${ghostCountF === 'counted' ? 'border border-orange/50 bg-orange/20 text-white' : 'btn-g'}`} aria-pressed={ghostCountF === 'counted'} onClick={() => updateFilters({ ghostCountF: 'counted' })}>นับแล้ว ({ghostDone})</button>
         </div>
       </div>
       <div className="mb-4 flex flex-wrap gap-2">
-        <input className="inp min-w-[200px] flex-[2]" placeholder="🔍 ค้นหาสินค้า…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <select className={sel} aria-label="แมพ" value={mapF} onChange={(e) => setMapF(e.target.value)}>
+        <input className="inp min-w-[200px] flex-[2]" placeholder="🔍 ค้นหาสินค้า…" value={q} onChange={(e) => updateFilters({ q: e.target.value })} />
+        <select className={sel} aria-label="แมพ" value={mapF} onChange={(e) => updateFilters({ mapF: e.target.value })}>
           <option value="">🌐 ทุกแมพ</option>{mapList.map((m) => <option key={m.id} value={m.id}>{m.icon} {m.name}</option>)}
         </select>
         {canEditCount && mapF && <button type="button" className={`btn btn-sm ${skippedMapIds.has(mapF) ? 'btn-p' : 'border border-red-500 bg-red-600 text-white hover:bg-red-700'}`} onClick={() => setSkippedMapIds((current) => { const next = new Set(current); if (next.has(mapF)) next.delete(mapF); else next.add(mapF); return next; })}>
           {skippedMapIds.has(mapF) ? '↩️ นำแมพกลับมานับ' : '⏭ ข้ามแมพนี้'}
         </button>}
-        <select className={sel} aria-label="Account ID" value={acctF} onChange={(e) => setAcctF(e.target.value)}>
-          <option value="">🔑 ทุก Account ID</option>{acctOptions.map((s) => <option key={s.id} value={s.id}>{s.shopId}{mapName(s.mapId) ? ` (${mapName(s.mapId)})` : ''}</option>)}
+        <select className={sel} aria-label="Account ID" value={acctF} onChange={(e) => updateFilters({ acctF: e.target.value })}>
+          <option value="">🔑 ทุก Account ID</option>{acctOptions.map((s) => <option key={s.id} value={s.id}>{bannedPairs.has(`${s.id}\u0000${mapF}`) ? '🚫 ' : ''}{s.shopId}{mapName(s.mapId) ? ` (${mapName(s.mapId)})` : ''}</option>)}
         </select>
-        <select className={sel} aria-label="ประเภท" value={typeF} onChange={(e) => setTypeF(e.target.value as TypeF)}>
+        {canEditCount && mapF && acctF && <button type="button" className={`btn btn-sm ${selectedPairBanned ? 'btn-g' : 'border border-red-500 bg-red-600 text-white hover:bg-red-700'}`} disabled={banSaving} onClick={toggleSelectedPairBan}>
+          {banSaving ? 'กำลังบันทึก…' : selectedPairBanned ? '↩️ ยกเลิกแบน ID ในแมพนี้' : '🚫 แบน ID ในแมพนี้'}
+        </button>}
+        <select className={sel} aria-label="ประเภท" value={typeF} onChange={(e) => updateFilters({ typeF: e.target.value as TypeF })}>
           <option value="">ทุกประเภท</option><option value="normal">📌 ปกติ</option><option value="bundle">📦 เซ็ต</option><option value="ghost">👻 Ghost</option>
         </select>
-        <select className={sel} aria-label="ระดับสต็อก" value={stockF} onChange={(e) => setStockF(e.target.value as StockF)}>
+        <select className={sel} aria-label="ระดับสต็อก" value={stockF} onChange={(e) => updateFilters({ stockF: e.target.value as StockF })}>
           <option value="">ทุกระดับสต็อก</option><option value="low">⚠️ ต่ำ (≤{LOW})</option><option value="zero">หมด (0)</option><option value="ok">ปกติ (&gt;{LOW})</option>
         </select>
-        <select className={sel} aria-label="เรียงลำดับ" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+        <select className={sel} aria-label="เรียงลำดับ" value={sort} onChange={(e) => updateFilters({ sort: e.target.value as SortKey })}>
           <option value="custom">เรียงตามลำดับ</option><option value="name">ชื่อ A→Z</option><option value="stock-asc">สต็อกน้อย→มาก</option>
           <option value="stock-desc">สต็อกมาก→น้อย</option><option value="map">ตามแมพ</option>
         </select>
@@ -452,12 +495,17 @@ export default function StockCountPage() {
         <p className="mb-0 mt-1 text-xs text-mute">สินค้าของแมพเหล่านี้จะไม่แสดงและไม่นับรวมในความคืบหน้า{canEditCount ? ' คลิกชื่อแมพเพื่อนำกลับมานับ' : ''}</p>
       </div>}
 
-      {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !visiblePList.length && !visibleGList.length ? <Empty icon={typeF === 'ghost' ? '👻' : '🎁'} text={mapF && skippedMapIds.has(mapF) ? 'แมพนี้ถูกข้ามอยู่ — กด “นำแมพกลับมานับ” หากต้องการนับ' : typeF === 'ghost' ? ghostCountF === 'pending' ? 'ไม่มี Ghost ที่รอนับในตัวกรองนี้' : ghostCountF === 'counted' ? 'ยังไม่มี Ghost ที่นับแล้วในตัวกรองนี้' : 'ไม่พบ Ghost' : 'ไม่พบรายการในตัวกรองนี้'} /> : (
+      {bannedProducts.length > 0 && <div className="mb-4 rounded-lg border border-red-500/35 bg-red-950/35 p-3 text-sm text-red-100">
+        <div className="font-semibold">🚫 ข้ามสินค้า {bannedProducts.length} รายการจากไอดีที่โดนแบนในแมพที่เกี่ยวข้อง</div>
+        <p className="mb-0 mt-1 text-xs text-red-100/75">สถานะแบนมีผลทุกครั้งจนกว่าจะกดยกเลิก · สินค้าคู่อื่นและแมพอื่นยังนับตามปกติ</p>
+      </div>}
+
+      {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !visiblePList.length && !visibleGList.length ? <Empty icon={typeF === 'ghost' ? '👻' : '🎁'} text={selectedPairBanned ? 'ไอดีนี้โดนแบนในแมพนี้ — สินค้าที่ผูกกับคู่นี้ถูกข้ามแล้ว' : mapF && skippedMapIds.has(mapF) ? 'แมพนี้ถูกข้ามอยู่ — กด “นำแมพกลับมานับ” หากต้องการนับ' : typeF === 'ghost' ? ghostCountF === 'pending' ? 'ไม่มี Ghost ที่รอนับในตัวกรองนี้' : ghostCountF === 'counted' ? 'ยังไม่มี Ghost ที่นับแล้วในตัวกรองนี้' : 'ไม่พบ Ghost' : 'ไม่พบรายการในตัวกรองนี้'} /> : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {visiblePList.length > 0 && visibleGList.length > 0 && <div className="col-span-full pt-1 text-xs font-bold uppercase tracking-[0.1em] text-mute">📦 สินค้า ({visiblePList.length})</div>}
           {visiblePList.map((p) => <ProductCard key={p.id} p={p} maps={mapList} shops={shopList} cur={curP(p)} saving={saving.has(p.id)} counted={countedIds.has(`p:${p.id}`)} editable={canEditCount} onChange={(n) => setPc((c) => ({ ...c, [p.id]: n }))} onSaveNext={() => confirmCountAndNext(`p:${p.id}`, pc[p.id] !== undefined && pc[p.id] !== p.stock ? () => saveOne(p) : undefined)} />)}
           {visibleGList.length > 0 && <div className="col-span-full pt-3 text-xs font-bold uppercase tracking-[0.1em] text-orange">👻 Ghost · ชิ้นส่วนที่ไม่ขายแยก ({visibleGList.length})</div>}
-          {visibleGList.map((g) => <GhostCard key={g.id} g={g} cur={curG(g)} saving={saving.has(g.id)} counted={countedIds.has(`g:${g.id}`)} editable={canEditCount} usedIn={(ghostUsage.get(g.id) ?? []).filter((p) => (!mapF || p.mapId === mapF) && (!acctF || p.shopIdRef === acctF))} maps={mapList} onChange={(n) => setGc((c) => ({ ...c, [g.id]: n }))} onSaveNext={() => confirmCountAndNext(`g:${g.id}`, gc[g.id] !== undefined && gc[g.id] !== g.stock ? () => saveOneGhost(g) : undefined)} />)}
+          {visibleGList.map((g) => <GhostCard key={g.id} g={g} cur={curG(g)} saving={saving.has(g.id)} counted={countedIds.has(`g:${g.id}`)} editable={canEditCount} usedIn={(ghostUsage.get(g.id) ?? []).filter((p) => (!mapF || p.mapId === mapF) && (!acctF || p.shopIdRef === acctF) && !isProductBanned(p))} maps={mapList} onChange={(n) => setGc((c) => ({ ...c, [g.id]: n }))} onSaveNext={() => confirmCountAndNext(`g:${g.id}`, gc[g.id] !== undefined && gc[g.id] !== g.stock ? () => saveOneGhost(g) : undefined)} />)}
         </div>
       )}
     </div>

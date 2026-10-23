@@ -10,6 +10,7 @@ import ProductsPage from './pages/Products';
 import ShopIdsPage from './pages/ShopIds';
 import SchedulePage from './pages/Schedule';
 import StockCountPage from './pages/StockCount';
+import HistoryPage from './pages/History';
 import { NAV } from './nav';
 
 const PAGES: Record<string, JSX.Element> = {
@@ -20,6 +21,7 @@ const PAGES: Record<string, JSX.Element> = {
   shopids: <ShopIdsPage />,
   schedule: <SchedulePage />,
   stockcount: <StockCountPage />,
+  history: <HistoryPage />,
 };
 
 export default function App() {

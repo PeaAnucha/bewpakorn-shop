@@ -5,12 +5,22 @@ import ProductDetail from '../components/ProductDetail';
 import ProductForm from '../components/ProductForm';
 import ProductSortList from '../components/ProductSortList';
 import { Chip, Empty, ErrorBox, MapChips, Menu, Spinner, Thumb, useToast } from '../components/ui';
-import { deleteProducts, errMsg, saveProduct, useGhosts, useMaps, useProducts, useRefreshData, useShopIdsOrdered } from '../lib/data';
+import { deleteProducts, errMsg, saveProduct, useGhosts, useMaps, useProducts, useRefreshData, useShopIdMapBans, useShopIdsOrdered } from '../lib/data';
 import { downloadCsv, fmtNum, today } from '../lib/format';
 import { emptyShopIds, filterSortProducts, type SortKey, type TypeTab } from '../lib/products';
 import type { Product } from '../lib/types';
 
 const PAGE = 100;
+
+function ProductThumb({ product }: { product: Product }) {
+  const depleted = product.stock <= 0;
+  return (
+    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg">
+      <Thumb src={product.thumbnail} className={`h-full w-full ${depleted ? 'grayscale opacity-60' : ''}`} />
+      {depleted && <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/20"><span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-red-400 bg-black/65 text-xl font-black leading-none text-red-300">×</span></span>}
+    </div>
+  );
+}
 
 function ProductQuickEdit({ product, onClose }: { product: Product; onClose: () => void }) {
   const toast = useToast();
@@ -60,6 +70,7 @@ export default function ProductsPage() {
   const maps = useMaps();
   const shops = useShopIdsOrdered();
   const products = useProducts();
+  const shopIdMapBans = useShopIdMapBans(can('products', 'view'));
   const ghosts = useGhosts();
 
   const [selMap, setSelMap] = useState('all');
@@ -78,6 +89,7 @@ export default function ProductsPage() {
   const mapList = maps.data ?? [];
   const shopList = shops.data ?? [];
   const all = products.data ?? [];
+  const bannedPairs = new Set((shopIdMapBans.data ?? []).map((ban) => `${ban.shopIdId}\u0000${ban.mapId}`));
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -123,8 +135,8 @@ export default function ProductsPage() {
         p.status === 'active' ? 'ใช้งาน' : 'ปิด', p.description ?? '', p.isBundle ? 'บันเดิล' : 'เดี่ยว']));
   }
 
-  const loading = maps.isLoading || shops.isLoading || products.isLoading;
-  const error = maps.error || shops.error || products.error;
+  const loading = maps.isLoading || shops.isLoading || products.isLoading || shopIdMapBans.isLoading;
+  const error = maps.error || shops.error || products.error || shopIdMapBans.error;
 
   const countText = loading ? '…' : `${fmtNum(sortMode ? sortList.length : list.length)} รายการ`;
 
@@ -220,16 +232,17 @@ export default function ProductsPage() {
                   const map = mapList.find((m) => m.id === p.mapId);
                   const shop = shopList.find((s) => s.id === p.shopIdRef);
                   return (
-                    <div key={p.id} className="overflow-hidden rounded-lg border border-lime-300/20 bg-[#242424]/90 shadow-sm shadow-black/20 transition-colors hover:border-lime-300/45">
+                    <div key={p.id} className="product-card overflow-hidden rounded-lg border border-lime-300/20 bg-[#242424]/90 shadow-sm shadow-black/20 transition-colors hover:border-lime-300/45">
                     <div onClick={() => setDetailId(p.id)}
                       className={`group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition duration-200 hover:bg-white/[0.04] ${p.status === 'active' ? '' : 'opacity-60'}`}>
                       {canDel && <input type="checkbox" checked={picked.has(p.id)} onClick={(e) => e.stopPropagation()} onChange={() => togglePick(p.id)} />}
-                      <Thumb src={p.thumbnail} className="h-11 w-11" />
+                      <ProductThumb product={p} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2">
                           <strong className="break-words font-semibold">{p.name}</strong>
                           {p.isBundle && <span className="text-xs font-bold text-accent">📦 เซ็ต</span>}
                           {p.status !== 'active' && <span className="text-xs font-bold text-danger">ปิดใช้งาน</span>}
+                          {p.shopIdRef && p.mapId && bannedPairs.has(`${p.shopIdRef}\u0000${p.mapId}`) && <Chip tone="low">🚫 โดนแบน{map ? ` · ${map.name}` : ''}</Chip>}
                         </div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-mute">
                           {shop && <Chip tone="id" className="text-sm">🔑 {shop.shopId}</Chip>}

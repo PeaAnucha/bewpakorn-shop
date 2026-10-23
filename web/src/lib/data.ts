@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { orderShopIds } from './products.ts';
 import { toEmail, toPassword } from './auth';
 import type { PermMap } from './perms';
-import type { BundleItem, Ghost, MapRow, Product, ShopIdRow, StockCountRound, StockHistoryEntry } from './types';
+import type { BundleItem, Ghost, MapRow, Product, ShopIdMapBan, ShopIdRow, StockCountRound, StockHistoryEntry } from './types';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -32,7 +32,7 @@ const toProduct = (r: any): Product => ({
   sortOrder: r.sort_order, createdAt: r.created_at, updatedAt: r.updated_at,
 });
 
-export const useMaps = () => useQuery({ queryKey: ['maps'], queryFn: async () => (await fetchAll('maps', 'created_at')).map(toMap).sort((a, b) => (a.sortOrder ?? 1e9) - (b.sortOrder ?? 1e9)) });
+export const useMaps = (enabled = true) => useQuery({ queryKey: ['maps'], enabled, queryFn: async () => (await fetchAll('maps', 'created_at')).map(toMap).sort((a, b) => (a.sortOrder ?? 1e9) - (b.sortOrder ?? 1e9)) });
 export const useShopIds = () => useQuery({ queryKey: ['shopIds'], queryFn: async () => (await fetchAll('shop_ids', 'created_at')).map(toShop) });
 /** Shop ID เรียงตามลำดับที่จัดไว้ (ลำดับเดียวทั้งระบบ ใช้ทุกที่ที่แสดงรายการ Shop ID) */
 export function useShopIdsOrdered() {
@@ -53,16 +53,39 @@ export function useStockCountShopIds() {
     },
   });
 }
-export const useProducts = () => useQuery({ queryKey: ['products'], queryFn: async () => (await fetchAll('products', 'created_at')).map(toProduct) });
+export const useShopIdMapBans = (enabled = true) => useQuery({
+  queryKey: ['shopIdMapBans'],
+  enabled,
+  queryFn: async (): Promise<ShopIdMapBan[]> => {
+    const { data, error } = await supabase.from('shop_id_map_bans').select('shop_id_id, map_id');
+    if (error) throw error;
+    return (data ?? []).map((row) => ({ shopIdId: row.shop_id_id, mapId: row.map_id }));
+  },
+});
+export const useProducts = (enabled = true) => useQuery({ queryKey: ['products'], enabled, queryFn: async () => (await fetchAll('products', 'created_at')).map(toProduct) });
 export const useGhosts = () => useQuery({ queryKey: ['ghosts'], queryFn: async () => (await fetchAll('ghost_items', 'name')).map(toGhost) });
-export const useStockHistory = () => useQuery({
-  queryKey: ['stockHistory'],
+export const useStockHistory = (enabled = true, fetchAllRows = false) => useQuery({
+  queryKey: ['stockHistory', fetchAllRows],
+  enabled,
   queryFn: async (): Promise<StockHistoryEntry[]> => {
     const since = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase.from('stock_history').select('id, item_type, item_id, item_name, action, old_stock, new_stock, actor_username, created_at')
-      .gte('created_at', since).order('created_at', { ascending: false }).limit(200);
-    if (error) throw error;
-    return (data ?? []).map((r) => ({ id: r.id, itemType: r.item_type, itemId: r.item_id, itemName: r.item_name,
+    const query = () => supabase.from('stock_history').select('id, item_type, item_id, item_name, action, old_stock, new_stock, actor_username, created_at')
+      .gte('created_at', since).order('created_at', { ascending: false });
+    let rows: any[] = [];
+    if (fetchAllRows) {
+      const size = 1000;
+      for (let from = 0; ; from += size) {
+        const { data, error } = await query().range(from, from + size - 1);
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (!data || data.length < size) break;
+      }
+    } else {
+      const { data, error } = await query().limit(200);
+      if (error) throw error;
+      rows = data ?? [];
+    }
+    return rows.map((r) => ({ id: r.id, itemType: r.item_type, itemId: r.item_id, itemName: r.item_name,
       action: r.action, oldStock: r.old_stock, newStock: r.new_stock, actorUsername: r.actor_username, createdAt: r.created_at }));
   },
 });
@@ -87,7 +110,7 @@ export async function saveStockCountRound(countedIds: string[], skippedMapIds: s
 /** รีเฟรชข้อมูลทุกชุดหลังบันทึก (สต็อกเซ็ต/ghost เปลี่ยนตามกันได้) */
 export function useRefreshData() {
   const qc = useQueryClient();
-  return () => Promise.all(['maps', 'shopIds', 'products', 'ghosts', 'stockHistory', 'stockCountRound', 'count', 'employees', 'roles', 'appUsers', 'permRows'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
+  return () => Promise.all(['maps', 'shopIds', 'shopIdMapBans', 'products', 'ghosts', 'stockHistory', 'stockCountRound', 'count', 'employees', 'roles', 'appUsers', 'permRows'].map((k) => qc.invalidateQueries({ queryKey: [k] })));
 }
 
 // ───────── จัดการข้อผิดพลาด ─────────
@@ -143,6 +166,10 @@ export async function reorderShopIds(ids: string[]) {
 }
 export async function deleteShopIds(ids: string[]) {
   expectRows(await run(supabase.from('shop_ids').delete().in('id', ids).select('id')), ids.length);
+}
+export async function setShopIdMapBan(shopIdId: string, mapId: string, banned: boolean) {
+  if (banned) return run(supabase.from('shop_id_map_bans').insert({ shop_id_id: shopIdId, map_id: mapId }));
+  return run(supabase.from('shop_id_map_bans').delete().eq('shop_id_id', shopIdId).eq('map_id', mapId));
 }
 
 // ───────── สินค้า ─────────

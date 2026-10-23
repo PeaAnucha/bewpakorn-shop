@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { loadThree } from '../lib/threeRuntime';
 
 type VantaEffect = (options: Record<string, unknown>) => { destroy: () => void };
 type EffectName = 'waves' | 'net';
 
-const THREE_SCRIPT = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js';
 const EFFECT_SCRIPTS: Record<EffectName, string> = {
   waves: 'https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js',
   net: 'https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.net.min.js',
@@ -47,7 +47,7 @@ export default function VantaBackground({ effect }: { effect: EffectName }) {
 
     async function start() {
       try {
-        await loadScript(THREE_SCRIPT);
+        const THREE = await loadThree();
         await loadScript(EFFECT_SCRIPTS[effect]);
         if (disposed) return;
 
@@ -55,6 +55,7 @@ export default function VantaBackground({ effect }: { effect: EffectName }) {
         if (!initialize) throw new Error(`Could not load the Vanta ${effect} effect.`);
         const common = {
           el: element,
+          THREE,
           mouseControls: true,
           touchControls: true,
           gyroControls: false,

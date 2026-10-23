@@ -2,12 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+@property --login-neon-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 html, body, #root { min-height: 100%; }
 body { @apply bg-bg font-sans text-ink antialiased; line-height: 1.5; }
 input[type='checkbox'] { accent-color: #1DB954; }
 code, pre { @apply font-mono; }
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes product-card-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes login-neon-spin {
+  to { --login-neon-angle: 360deg; }
+}
 
 .vanta-page { isolation: isolate; }
 .vanta-scene {
@@ -23,18 +40,48 @@ code, pre { @apply font-mono; }
 .vanta-scene canvas { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   .vanta-scene canvas { display: none; }
+  .card, .login-card, .product-card { animation: none !important; }
+  .login-card::before, .login-card::after { animation: none !important; }
 }
 
 @layer components {
   /* แผงกระจกฝ้า โปร่งแสงและเบลอฉากหลังแบบ iPad */
   .card {
     @apply rounded-lg p-5;
+    animation: card-enter 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
     background: rgba(35, 35, 35, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     backdrop-filter: blur(16px) saturate(140%);
   }
+  .login-card {
+    position: relative;
+    isolation: isolate;
+    animation: card-enter 460ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .login-card::before, .login-card::after {
+    content: '';
+    position: absolute;
+    border-radius: 12px;
+    background: conic-gradient(from var(--login-neon-angle), transparent 0deg 286deg, rgba(32, 255, 66, 0.18) 306deg, #25f84f 326deg, #c6ff64 337deg, #26ff51 348deg, transparent 360deg);
+    animation: login-neon-spin 7s linear infinite;
+    pointer-events: none;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+  }
+  .login-card::before {
+    inset: -4px;
+    z-index: -1;
+    padding: 5px;
+    filter: blur(9px);
+    opacity: 0.58;
+  }
+  .login-card::after { inset: -1px; z-index: 0; padding: 1.5px; }
+  .login-card > * { position: relative; z-index: 1; }
+  .product-card { animation: product-card-enter 540ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
   /* ช่องกรอก: พื้น #282828 ไม่มีเส้นขอบ โฟกัสแล้วมีเส้นขาว */
   .inp { @apply w-full rounded border border-transparent bg-s2 px-3 py-2 text-sm text-ink outline-none transition placeholder:text-mute focus:border-accent; }
   /* ปุ่ม: ทรงแคปซูล ตัวหนา ขยาย 1.04 ตอน hover */

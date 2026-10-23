@@ -17,6 +17,11 @@ export interface ShopIdRow {
   sortOrder: number | null;
 }
 
+export interface ShopIdMapBan {
+  shopIdId: string;
+  mapId: string;
+}
+
 /** ส่วนประกอบของ Bundle: สินค้าในระบบ หรือ Ghost (Non-sale component) */
 export interface BundleItem {
   productId: string; // รหัสสินค้า หรือ "__ghost__:<ชื่อ>"

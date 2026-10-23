@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthProvider';
+import LoginLogoScene from '../components/LoginLogoScene';
 import VantaBackground from '../components/VantaBackground';
 
 export default function Login() {
@@ -21,9 +22,11 @@ export default function Login() {
   return (
     <div className="vanta-page flex min-h-screen items-center justify-center px-4">
       <VantaBackground effect="waves" />
-      <form onSubmit={submit} className="relative z-10 w-full max-w-[390px] rounded-lg bg-surface/95 p-9 shadow-2xl backdrop-blur-sm">
+      <form onSubmit={submit} className="login-card relative z-10 w-full max-w-[390px] rounded-lg bg-surface/95 p-9 shadow-2xl backdrop-blur-sm">
         <div className="mb-7 text-center">
-          <img src="/brand-logo.png" alt="Bewpakorn Shop" className="mx-auto h-16 w-16 rounded-xl object-cover shadow-lg" />
+          <div className="relative mx-auto mb-1 h-24 w-24">
+            <LoginLogoScene />
+          </div>
           <h1 className="mt-1 font-head text-2xl font-extrabold text-accent">BewpakornShop</h1>
           <p className="mt-1 text-sm text-mute">ระบบจัดการร้านและพนักงาน</p>
         </div>
