@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { deleteEmployee, errMsg, removeAccount, saveEmployee, useAppUsers, useEmployees, useRefreshData, useRoles, type AppUser, type Employee } from '../lib/data';
+import { deleteEmployee, errMsg, removeAccount, saveEmployee, useAccountPresence, useAppUsers, useEmployees, useRefreshData, useRoles, type AccountPresence, type AppUser, type Employee } from '../lib/data';
 import AccountModal, { RoleBadge } from './AccountModal';
 import { Chip, Empty, ErrorBox, Field, Modal, Spinner, useToast } from './ui';
 
@@ -11,6 +11,18 @@ function UserAvatar({ src, name }: { src: string | null; name: string }) {
   </div>;
 }
 
+function OnlineStatus({ accountId, rows, loading, error }: { accountId: string | null; rows: AccountPresence[]; loading: boolean; error: boolean }) {
+  if (!accountId) return <span className="text-faint">—</span>;
+  if (error) return <span className="text-xs font-semibold text-warn" title="ต้องรัน migration 013_account_presence.sql ใน Supabase">ยังไม่พร้อม</span>;
+  if (loading && !rows.length) return <span className="text-xs text-mute">กำลังตรวจ…</span>;
+  const lastSeen = rows.find((row) => row.userId === accountId)?.lastSeenAt;
+  const age = lastSeen ? Date.now() - Date.parse(lastSeen) : Number.POSITIVE_INFINITY;
+  const online = age >= 0 && age <= 90_000;
+  return <span className={`inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-semibold ${online ? 'text-green-300' : 'text-mute'}`}>
+    <span className={`h-2 w-2 rounded-full ${online ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.7)]' : 'bg-gray-500'}`} />
+    {online ? 'ออนไลน์' : 'ออฟไลน์'}
+  </span>;
+}
 function EmployeeForm({ emp, onClose }: { emp: Employee | null; onClose: () => void }) {
   const toast = useToast();
   const refresh = useRefreshData();
@@ -54,12 +66,15 @@ export default function EmployeesTab() {
   const emps = useEmployees();
   const roles = useRoles();
   const users = useAppUsers(isAdmin);
+  const presence = useAccountPresence(isAdmin);
   const [form, setForm] = useState<Employee | 'new' | null>(null);
   const [acct, setAcct] = useState<{ employee: Employee | null; user: AppUser | null } | null>(null);
 
   const list = emps.data ?? [];
   const roleList = roles.data ?? [];
   const userList = users.data ?? [];
+  const presenceRows = presence.data ?? [];
+  const onlineCount = userList.filter((user) => presenceRows.some((row) => row.userId === user.id && Date.now() - Date.parse(row.lastSeenAt) >= 0 && Date.now() - Date.parse(row.lastSeenAt) <= 90_000)).length;
   const userOf = (e: Employee) => userList.find((u) => u.employeeId === e.id);
   const unlinked = userList.filter((u) => !u.employeeId || !list.some((e) => e.id === u.employeeId));
   const canEdit = can('employees', 'edit');
@@ -83,15 +98,16 @@ export default function EmployeesTab() {
       <div className="card">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-head text-xl font-bold tracking-tight">👥 พนักงาน</h2>
+          {isAdmin && <span className="text-xs font-semibold text-mute" title="ตรวจสถานะใหม่ทุก 15 วินาที">{presence.error ? 'สถานะออนไลน์ยังไม่พร้อม' : `ออนไลน์ ${onlineCount}/${userList.length}`}</span>}
           {can('employees', 'add') && <button className="btn btn-p" onClick={() => setForm('new')}>+ เพิ่มพนักงาน</button>}
         </div>
         {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !list.length ? <Empty icon="👥" text="ยังไม่มีพนักงาน" /> : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-xs uppercase tracking-wider text-mute">
                   <th className="w-8 py-2 pl-2">#</th><th>ชื่อ</th><th>ยศ / สรรพนาม</th><th>ตำแหน่ง</th>
-                  {isAdmin && <><th>Roles</th><th>Username</th></>}
+                  {isAdmin && <><th>Roles</th><th>Username</th><th>สถานะ</th></>}
                   {(canEdit || canDel || isAdmin) && <th />}
                 </tr>
               </thead>
@@ -111,6 +127,7 @@ export default function EmployeesTab() {
                       {isAdmin && <>
                         <td>{u ? u.roles.map((r) => <RoleBadge key={r} role={r} roles={roleList} />) : <span className="text-faint">—</span>}</td>
                         <td>{u ? <code className="rounded bg-s3 px-1.5 py-0.5">{u.username}</code> : <span className="text-faint">—</span>}</td>
+                        <td><OnlineStatus accountId={u?.id ?? null} rows={presenceRows} loading={presence.isLoading} error={!!presence.error} /></td>
                       </>}
                       {(canEdit || canDel || isAdmin) && (
                         <td className="whitespace-nowrap text-right">
@@ -140,6 +157,7 @@ export default function EmployeesTab() {
               <div key={u.id} className="flex flex-wrap items-center gap-3 rounded-lg bg-s2 transition duration-200 hover:bg-s3 p-3">
                 <UserAvatar src={u.avatarUrl} name={u.displayName || u.username} />
                 <code className="rounded bg-s3 px-1.5 py-0.5 text-sm">{u.username}</code>
+                <OnlineStatus accountId={u.id} rows={presenceRows} loading={presence.isLoading} error={!!presence.error} />
                 <span className="text-sm text-mute">{u.displayName}</span>
                 <div className="flex-1">{u.roles.map((r) => <RoleBadge key={r} role={r} roles={roleList} />)}</div>
                 <button className="btn btn-g !px-2 !py-1 text-xs" onClick={() => setAcct({ employee: null, user: u })}>🔐 แก้ไข</button>
@@ -162,3 +180,4 @@ export default function EmployeesTab() {
     </div>
   );
 }
+

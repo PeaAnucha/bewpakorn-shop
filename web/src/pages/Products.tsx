@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import BulkProducts from '../components/BulkProducts';
 import ProductDetail from '../components/ProductDetail';
@@ -122,6 +122,11 @@ export default function ProductsPage() {
     setQ(''); setStatus(''); setType('all'); setSort('custom'); setPicked(new Set()); setSortMode(true);
   }
 
+  async function copyProductName(name: string) {
+    try { await navigator.clipboard.writeText(name.trim()); toast('คัดลอกชื่อสินค้าแล้ว ✅'); }
+    catch { toast('คัดลอกไม่ได้ กรุณาเลือกชื่อแล้วคัดลอกเอง', 'error'); }
+  }
+
   async function remove(ids: string[]) {
     const label = ids.length === 1 ? `"${all.find((p) => p.id === ids[0])?.name}"` : `${ids.length} รายการ`;
     if (!ids.length || !confirm(`ลบสินค้า ${label}?`)) return;
@@ -228,11 +233,12 @@ export default function ProductsPage() {
                     เลือกทั้งหมด
                   </label>
                 )}
-                {visible.map((p) => {
+                {visible.map((p, index) => {
                   const map = mapList.find((m) => m.id === p.mapId);
                   const shop = shopList.find((s) => s.id === p.shopIdRef);
+                  const particleStyle = index < 12 ? { '--particle-delay': `${index * 45}ms` } as CSSProperties : undefined;
                   return (
-                    <div key={p.id} className="product-card overflow-hidden rounded-lg border border-lime-300/20 bg-[#242424]/90 shadow-sm shadow-black/20 transition-colors hover:border-lime-300/45">
+                    <div key={p.id} style={particleStyle} className={`product-card ${index < 12 ? 'product-card-assemble' : ''} overflow-hidden rounded-lg border border-lime-300/20 shadow-sm shadow-black/20 backdrop-blur-lg transition-[scale,border-color,box-shadow] hover:scale-[1.015] hover:border-lime-300/45`}>
                     <div onClick={() => setDetailId(p.id)}
                       className={`group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition duration-200 hover:bg-white/[0.04] ${p.status === 'active' ? '' : 'opacity-60'}`}>
                       {canDel && <input type="checkbox" checked={picked.has(p.id)} onClick={(e) => e.stopPropagation()} onChange={() => togglePick(p.id)} />}
@@ -240,6 +246,7 @@ export default function ProductsPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2">
                           <strong className="break-words font-semibold">{p.name}</strong>
+                          <button type="button" className="icon-btn !h-7 !w-7" title="คัดลอกชื่อสินค้า" aria-label={`คัดลอกชื่อ ${p.name}`} onClick={(e) => { e.stopPropagation(); void copyProductName(p.name); }}>📋</button>
                           {p.isBundle && <span className="text-xs font-bold text-accent">📦 เซ็ต</span>}
                           {p.status !== 'active' && <span className="text-xs font-bold text-danger">ปิดใช้งาน</span>}
                           {p.shopIdRef && p.mapId && bannedPairs.has(`${p.shopIdRef}\u0000${p.mapId}`) && <Chip tone="low">🚫 โดนแบน{map ? ` · ${map.name}` : ''}</Chip>}
@@ -288,3 +295,5 @@ export default function ProductsPage() {
     </div>
   );
 }
+
+

@@ -12,6 +12,16 @@ html, body, #root { min-height: 100%; }
 body { @apply bg-bg font-sans text-ink antialiased; line-height: 1.5; }
 input[type='checkbox'] { accent-color: #1DB954; }
 code, pre { @apply font-mono; }
+* { scrollbar-width: thin; scrollbar-color: #4b8057 #181d1a; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { border-radius: 999px; background: #181d1a; }
+::-webkit-scrollbar-thumb {
+  border: 3px solid #181d1a;
+  border-radius: 999px;
+  background: #4b8057;
+}
+::-webkit-scrollbar-thumb:hover { background: #78bd80; }
+::-webkit-scrollbar-corner { background: #181d1a; }
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 @keyframes card-enter {
@@ -22,32 +32,156 @@ code, pre { @apply font-mono; }
   from { opacity: 0; transform: translateY(12px) scale(0.985); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes product-data-assemble {
+  0% { opacity: 0; background-position: -18px 18px, calc(100% + 18px) calc(100% - 18px); }
+  18% { opacity: 0.48; }
+  68% { opacity: 0.2; background-position: 0 0, calc(100% - 6px) 6px; }
+  100% { opacity: 0; background-position: 0 0, calc(100% - 6px) 6px; }
+}
 @keyframes login-neon-spin {
   to { --login-neon-angle: 360deg; }
 }
 
 .vanta-page { isolation: isolate; }
-.vanta-scene {
-  position: fixed !important;
+.ambient-background {
+  position: fixed;
   inset: 0;
-  z-index: 0 !important;
-  pointer-events: none;
+  z-index: 0;
   overflow: hidden;
-  background: radial-gradient(ellipse at 70% 20%, #183522 0%, #121212 55%);
+  pointer-events: none;
+  background: radial-gradient(ellipse at 70% 20%, #12351e 0%, #101411 58%, #0d100e 100%);
 }
-.vanta-scene-waves { background: radial-gradient(ellipse at 50% 100%, #102a17 0%, #121212 65%); }
-.vanta-scene-net { background: radial-gradient(ellipse at 70% 20%, #183522 0%, #121212 55%); }
-.vanta-scene canvas { pointer-events: none; }
+.ambient-background-login { background: radial-gradient(ellipse at 50% 100%, #12371b 0%, #101711 50%, #0b100d 100%); }
+.ambient-background-app {
+  background: radial-gradient(ellipse at 70% 20%, #123329 0%, #101411 54%, #0d100e 100%);
+}
+.liquid-surface-sidebar {
+  background: rgba(6, 11, 8, 0.68);
+  border-right: 1px solid rgba(205, 255, 220, 0.12);
+}
+.hanging-light-glow {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  right: -5vw;
+  width: min(76vw, 920px);
+  height: 82vh;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(ellipse at 84% 18%, rgba(255, 196, 112, 0.28) 0%, rgba(255, 176, 87, 0.11) 32%, transparent 70%);
+  filter: blur(12px);
+  transition: opacity 420ms ease;
+}
+.hanging-light-glow.is-on { opacity: 1; }
+.hanging-light {
+  position: fixed;
+  z-index: 40;
+  top: 0;
+  right: clamp(16px, 4vw, 76px);
+  width: 100px;
+  height: clamp(220px, 37vh, 360px);
+  pointer-events: none;
+}
+.hanging-light-cord {
+  position: absolute;
+  top: 0;
+  bottom: 66px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #26231e, #9c8a6a 48%, #24211c);
+  box-shadow: 0 0 5px rgba(255, 211, 145, 0.18);
+}
+.hanging-light-toggle {
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  display: flex;
+  width: 96px;
+  height: 100px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.hanging-light-toggle:focus-visible { outline: 2px solid #ffe1a4; outline-offset: 4px; }
+.hanging-light-canvas { position: absolute; inset: 0; width: 96px; height: 108px; pointer-events: none; }
+.hanging-light-fallback {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  height: 42px;
+  border: 1px solid rgba(255, 231, 185, 0.55);
+  border-radius: 52% 52% 46% 46%;
+  background: radial-gradient(ellipse at 35% 28%, #fff0c8 0%, #ffc15f 34%, #a95b23 100%);
+  box-shadow: 0 0 17px rgba(255, 183, 86, 0.65);
+}
+.hanging-light-fallback::after {
+  position: absolute;
+  right: 7px;
+  bottom: -6px;
+  left: 7px;
+  height: 8px;
+  border-radius: 2px 2px 4px 4px;
+  background: repeating-linear-gradient(to bottom, #8e8069 0 2px, #4a453d 2px 4px);
+  content: '';
+}
+.hanging-light:not(.is-on) .hanging-light-fallback {
+  border-color: rgba(220, 220, 210, 0.34);
+  background: radial-gradient(ellipse at 35% 28%, #adb0a8 0%, #64675f 55%, #363934 100%);
+  box-shadow: 0 0 6px rgba(255, 215, 155, 0.08);
+}
+@media (max-width: 1400px), (max-height: 560px) {
+  .hanging-light {
+    top: auto;
+    right: 12px;
+    bottom: 12px;
+    width: 44px;
+    height: 44px;
+    transform: none;
+  }
+  .hanging-light-glow, .hanging-light-cord { display: none; }
+  .hanging-light-toggle {
+    position: relative;
+    bottom: auto;
+    left: auto;
+    width: 44px;
+    height: 44px;
+    transform: none;
+    overflow: hidden;
+    border: 1px solid rgba(255, 223, 163, 0.35);
+    background: rgba(19, 24, 21, 0.9);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+  }
+  .hanging-light-canvas { inset: auto; top: -14px; left: -10px; width: 64px; height: 72px; }
+  .hanging-light-fallback { width: 25px; height: 31px; }
+  .hanging-light-fallback::after { right: 5px; bottom: -5px; left: 5px; height: 7px; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .vanta-scene canvas { display: none; }
+  .hanging-light-glow { transition: none; }
+}
+@media (prefers-reduced-motion: reduce) {
   .card, .login-card, .product-card { animation: none !important; }
+  .card, .product-card { transition: none !important; scale: none !important; }
+  .btn, .icon-btn, .sidebar-link { transition: none !important; }
   .login-card::before, .login-card::after { animation: none !important; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .product-card-assemble::after { animation: none !important; display: none; }
+}
 @layer components {
   /* แผงกระจกฝ้า โปร่งแสงและเบลอฉากหลังแบบ iPad */
   .card {
     @apply rounded-lg p-5;
+    transition: scale 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
     animation: card-enter 380ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
     background: rgba(35, 35, 35, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -55,9 +189,18 @@ code, pre { @apply font-mono; }
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     backdrop-filter: blur(16px) saturate(140%);
   }
+  .card:hover {
+    scale: 1.012;
+    border-color: rgba(190, 242, 100, 0.2);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  }
   .login-card {
     position: relative;
     isolation: isolate;
+    background: rgba(16, 22, 18, 0.58);
+    border: 1px solid rgba(207, 255, 219, 0.16);
+    -webkit-backdrop-filter: blur(12px) saturate(135%);
+    backdrop-filter: blur(12px) saturate(135%);
     animation: card-enter 460ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   .login-card::before, .login-card::after {
@@ -81,16 +224,64 @@ code, pre { @apply font-mono; }
   }
   .login-card::after { inset: -1px; z-index: 0; padding: 1.5px; }
   .login-card > * { position: relative; z-index: 1; }
-  .product-card { animation: product-card-enter 540ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  .product-card-assemble { position: relative; isolation: isolate; }
+  .product-card-assemble::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: inherit;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    background-image:
+      radial-gradient(circle, rgba(190, 242, 100, 0.95) 0 1px, transparent 1.5px),
+      radial-gradient(circle, rgba(74, 222, 128, 0.8) 0 0.8px, transparent 1.4px);
+    background-size: 18px 18px, 26px 26px;
+    background-position: -18px 18px, calc(100% + 18px) calc(100% - 18px);
+    animation: product-data-assemble 680ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation-delay: var(--particle-delay, 0ms);
+  }
+  .product-card {
+    animation: product-card-enter 540ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    background: rgba(35, 39, 36, 0.72);
+    -webkit-backdrop-filter: blur(14px) saturate(125%);
+    backdrop-filter: blur(14px) saturate(125%);
+  }
+  .modal-glass-panel {
+    border: 1px solid rgba(205, 255, 220, 0.14);
+    background: rgba(24, 29, 26, 0.84);
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    backdrop-filter: blur(20px) saturate(130%);
+  }
   /* ช่องกรอก: พื้น #282828 ไม่มีเส้นขอบ โฟกัสแล้วมีเส้นขาว */
   .inp { @apply w-full rounded border border-transparent bg-s2 px-3 py-2 text-sm text-ink outline-none transition placeholder:text-mute focus:border-accent; }
-  /* ปุ่ม: ทรงแคปซูล ตัวหนา ขยาย 1.04 ตอน hover */
-  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold uppercase tracking-[0.05em] transition duration-200 hover:scale-[1.04] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100; }
+  /* ปุ่ม: ทรงแคปซูล ตัวหนา ขยายเล็กน้อยตอน hover */
+  .btn { @apply inline-flex items-center justify-center gap-1.5 rounded-full px-5 py-2 text-sm font-bold uppercase tracking-[0.05em] transition duration-200 hover:scale-[1.02] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100; }
   .btn-p { @apply bg-accent text-black hover:bg-accent-hover; }
   .btn-g { @apply border border-[#727272] bg-transparent text-white hover:border-accent hover:text-accent; }
   .btn-sm { @apply !px-4 !py-1.5 text-xs; }
   /* ปุ่มไอคอนเล็ก: ไม่มีกรอบ สว่างขึ้นตอน hover */
-  .icon-btn { @apply inline-flex h-8 w-8 items-center justify-center rounded-full text-sm text-mute transition duration-200 hover:bg-s4 hover:text-white disabled:opacity-40; }
+  .icon-btn { @apply inline-flex h-8 w-8 items-center justify-center rounded-full text-sm text-mute transition duration-200 hover:bg-s4 hover:text-white hover:scale-[1.04] disabled:opacity-40; }
   /* ตัวเลือก (select) ขนาดกะทัดรัดสำหรับแถบกรอง */
   .sel { @apply inp !w-auto cursor-pointer; }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

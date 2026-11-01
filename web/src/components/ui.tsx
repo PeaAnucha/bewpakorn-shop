@@ -42,7 +42,7 @@ export function Modal({ title, onClose, children, footer, wide }: {
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className={`my-auto w-full ${wide ? 'max-w-2xl' : 'max-w-md'} rounded-lg bg-s3 shadow-2xl`}>
+      <div className={`my-auto w-full ${wide ? 'max-w-2xl' : 'max-w-md'} rounded-lg shadow-2xl modal-glass-panel`}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-head text-xl font-bold tracking-tight">{title}</h2>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-mute hover:bg-s2 hover:text-ink" aria-label="ปิด">✕</button>
@@ -177,3 +177,5 @@ export const SortTabs = <K extends string>({ tabs, value, onChange }: { tabs: [K
     ))}
   </div>
 );
+
+

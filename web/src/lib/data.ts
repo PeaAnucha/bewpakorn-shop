@@ -183,7 +183,7 @@ export async function saveProduct(id: string | null, v: ProductInput): Promise<s
     supabase.rpc('save_product', {
       p_id: id,
       p: {
-        name: v.name, map_id: v.mapId, shop_id_ref: v.shopIdRef, stock: v.stock, description: v.description, status: v.status,
+        name: v.name.trim(), map_id: v.mapId, shop_id_ref: v.shopIdRef, stock: v.stock, description: v.description, status: v.status,
         image_url: v.thumbnail, is_bundle: v.isBundle, bundle_items: v.bundleItems, sort_order: v.sortOrder,
       },
     }),
@@ -192,7 +192,7 @@ export async function saveProduct(id: string | null, v: ProductInput): Promise<s
 export interface BulkProductInput { name: string; mapId: string; shopIdRef: string; stock: number; description: string; status: string; thumbnail: string }
 export async function addProducts(items: BulkProductInput[]) {
   const rows = items.map((v) => ({
-    name: v.name, map_id: v.mapId || null, shop_id_ref: v.shopIdRef || null, stock: v.stock,
+    name: v.name.trim(), map_id: v.mapId || null, shop_id_ref: v.shopIdRef || null, stock: v.stock,
     description: v.description || null, status: v.status, image_url: v.thumbnail.trim() || null, is_bundle: false, bundle_items: [],
   }));
   await run(supabase.from('products').insert(rows));
@@ -226,6 +226,18 @@ export const useRoles = () => useQuery({
   queryFn: async (): Promise<RoleRow[]> => (await fetchAll('roles', 'created_at')).map((r) => ({ id: r.id, name: r.name, label: r.label, color: r.color })),
 });
 /** บัญชีผู้ใช้ทั้งหมด (อ่านได้เฉพาะ admin) */
+export interface AccountPresence { userId: string; lastSeenAt: string }
+export const useAccountPresence = (enabled: boolean) => useQuery({
+  queryKey: ['accountPresence'],
+  enabled,
+  queryFn: async (): Promise<AccountPresence[]> => {
+    const { data, error } = await supabase.from('account_presence').select('user_id, last_seen_at').order('last_seen_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map((row) => ({ userId: row.user_id, lastSeenAt: row.last_seen_at }));
+  },
+  refetchInterval: 15_000,
+  staleTime: 0,
+});
 export const useAppUsers = (enabled: boolean) => useQuery({
   queryKey: ['appUsers'],
   enabled,
@@ -287,3 +299,4 @@ export async function changeOwnPin(username: string, oldPin: string, newPin: str
   const { error: e2 } = await supabase.auth.updateUser({ password: toPassword(newPin) });
   if (e2) throw new Error(errMsg(e2));
 }
+

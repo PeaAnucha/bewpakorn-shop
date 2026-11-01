@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../auth/AuthProvider';
+import useLiquidGlassSurfaces from '../components/useLiquidGlassSurfaces';
 import LoginLogoScene from '../components/LoginLogoScene';
-import VantaBackground from '../components/VantaBackground';
+import StaticBackground from '../components/StaticBackground';
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -9,6 +10,7 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [err, setErr] = useState('');
+  const { rootRef, surfaceCallbacks } = useLiquidGlassSurfaces(1);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -20,9 +22,14 @@ export default function Login() {
   }
 
   return (
-    <div className="vanta-page flex min-h-screen items-center justify-center px-4">
-      <VantaBackground effect="waves" />
-      <form onSubmit={submit} className="login-card relative z-10 w-full max-w-[390px] rounded-lg bg-surface/95 p-9 shadow-2xl backdrop-blur-sm">
+    <div ref={rootRef} className="vanta-page flex min-h-screen items-center justify-center px-4">
+      <StaticBackground theme="login" />
+      <form
+        ref={surfaceCallbacks[0]}
+        onSubmit={submit}
+        data-config="{&quot;blurAmount&quot;:0.22,&quot;refraction&quot;:0.35,&quot;edgeHighlight&quot;:0.12,&quot;cornerRadius&quot;:12,&quot;opacity&quot;:0.9}"
+        className="login-card relative z-10 w-full max-w-[390px] rounded-lg p-9 shadow-2xl"
+      >
         <div className="mb-7 text-center">
           <div className="relative mx-auto mb-1 h-24 w-24">
             <LoginLogoScene />
@@ -40,3 +47,5 @@ export default function Login() {
     </div>
   );
 }
+
+

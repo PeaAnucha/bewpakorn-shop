@@ -2,10 +2,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { NAV } from '../nav';
+import { supabase } from '../lib/supabase';
+import { useAccountPresence, useAppUsers } from '../lib/data';
 import ChangePin from './ChangePin';
+import HangingLight from './HangingLight';
 import ProfileAvatarModal from './ProfileAvatarModal';
-import VantaBackground from './VantaBackground';
+import StaticBackground from './StaticBackground';
+import useLiquidGlassSurfaces from './useLiquidGlassSurfaces';
 
+function formatLastOnline(value: string | undefined) {
+  if (!value) return 'ยังไม่เคยออนไลน์';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'ไม่ทราบเวลา';
+  return new Intl.DateTimeFormat('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(date);
+}
 function Avatar({ src, name }: { src: string | null; name: string }) {
   const [bad, setBad] = useState(false);
   if (!src || bad) {
@@ -22,6 +32,37 @@ export default function Layout() {
   const [navOrder, setNavOrder] = useState<string[]>([]);
   const navOrderKey = profile ? `sidebar-order:${profile.id}` : null;
   const [loadedOrderKey, setLoadedOrderKey] = useState<string | null>(null);
+  const { rootRef, surfaceCallbacks } = useLiquidGlassSurfaces(1);
+  const isAdmin = !!profile?.isAdmin;
+  const statusAccounts = useAppUsers(isAdmin);
+  const statusRecords = useAccountPresence(isAdmin);
+  const onlineAccountIds = useMemo(() => {
+    const now = Date.now();
+    return new Set((statusRecords.data ?? [])
+      .filter((record) => {
+        const age = now - Date.parse(record.lastSeenAt);
+        return age >= 0 && age <= 90_000;
+      })
+      .map((record) => record.userId));
+  }, [statusRecords.data]);
+  const accountList = statusAccounts.data ?? [];
+  const statusError = !!(statusAccounts.error || statusRecords.error);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    let warned = false;
+    const sendHeartbeat = async () => {
+      const { error } = await supabase.from('account_presence').upsert({ user_id: profile.id }, { onConflict: 'user_id' });
+      if (error && !warned) {
+        warned = true;
+        console.warn('Online status is unavailable. Apply Supabase migration 013_account_presence.sql.', error);
+      }
+    };
+    void sendHeartbeat();
+    const interval = window.setInterval(() => { void sendHeartbeat(); }, 30_000);
+    return () => window.clearInterval(interval);
+  }, [profile?.id]);
+
 
   useEffect(() => {
     if (!navOrderKey) return;
@@ -61,9 +102,10 @@ export default function Layout() {
 
 
   return (
-    <div className="vanta-page flex min-h-screen flex-col md:flex-row">
-      <VantaBackground effect="net" />
-      <aside className="relative z-10 bg-black/80 backdrop-blur-sm md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col">
+    <div ref={rootRef} className="vanta-page flex min-h-screen flex-col md:flex-row">
+      <StaticBackground theme="app" />
+      <HangingLight profileId={profile?.id} />
+      <aside ref={surfaceCallbacks[0]} className="liquid-surface liquid-surface-sidebar relative z-10 backdrop-blur-sm md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col">
         <div className="flex items-center justify-between px-4 py-4 md:block">
           <div className="flex items-center gap-2 font-head text-lg font-extrabold text-accent">
             <img src="/brand-logo.png" alt="Bewpakorn Shop" className="h-10 w-10 rounded-lg object-cover" />
@@ -93,7 +135,7 @@ export default function Layout() {
               <NavLink
                 to={`/${n.path}`}
                 className={({ isActive }) =>
-                  `flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap rounded-lg border-l-[3px] px-3 py-2 text-sm font-bold transition duration-200 ${
+                  `sidebar-link flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap rounded-lg border-l-[3px] px-3 py-2 text-sm font-bold transition duration-200 hover:scale-[1.01] ${
                     isActive ? 'border-accent bg-surface text-accent' : 'border-transparent text-mute hover:text-white'
                   }`
                 }
@@ -107,9 +149,36 @@ export default function Layout() {
               </div>}
             </div>
           ))}
-          <button onClick={() => setPinOpen(true)} className="btn btn-g btn-sm shrink-0 md:mt-auto">🔒 เปลี่ยน PIN</button>
-          <button onClick={signOut} className="btn btn-g btn-sm shrink-0 md:mt-1">ออกจากระบบ</button>
         </nav>
+              <div className="shrink-0 border-t border-white/10 px-3 pt-2 pb-3">
+          {isAdmin && <section aria-label="สถานะบัญชี" className="mb-2">
+            <div className="mb-1 flex items-center justify-between px-2 text-xs font-semibold">
+              <span className="text-white">สถานะบัญชี</span>
+              <span className={statusError ? 'text-warn' : 'text-mute'}>{statusError ? 'ยังไม่พร้อม' : statusAccounts.isLoading || statusRecords.isLoading ? 'กำลังตรวจ…' : `${onlineAccountIds.size}/${accountList.length} ออนไลน์`}</span>
+            </div>
+            <div className="max-h-36 space-y-0.5 overflow-y-auto rounded-lg bg-black/20 p-1">
+              {statusError ? <p className="px-2 py-1.5 text-xs text-warn">รัน migration 013_account_presence.sql ใน Supabase ก่อน</p>
+                : statusAccounts.isLoading || statusRecords.isLoading ? <p className="px-2 py-1.5 text-xs text-mute">กำลังโหลดสถานะ…</p>
+                  : accountList.length === 0 ? <p className="px-2 py-1.5 text-xs text-mute">ยังไม่มีบัญชี</p>
+                    : [...accountList].sort((a, b) => Number(onlineAccountIds.has(b.id)) - Number(onlineAccountIds.has(a.id)) || (a.displayName || a.username).localeCompare(b.displayName || b.username)).map((account) => {
+                      const online = onlineAccountIds.has(account.id);
+                      const lastSeen = statusRecords.data?.find((record) => record.userId === account.id)?.lastSeenAt;
+                      return <div key={account.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs">
+                        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ring-1 ${online ? 'bg-lime-300 ring-lime-100/70 shadow-[0_0_9px_rgba(190,242,100,0.95)]' : 'bg-gray-400 ring-white/25'}`} />
+                        <span className="min-w-0 flex-1 truncate text-white" title={account.username}>{account.displayName || account.username}</span>
+                        <span className="flex shrink-0 flex-col items-end leading-tight">
+                          <span className={online ? 'text-green-300' : 'text-mute'}>{online ? 'ออนไลน์' : 'ออฟไลน์'}</span>
+                          {!online && <span className="text-[10px] text-faint" title={lastSeen ? `ออนไลน์ล่าสุด ${formatLastOnline(lastSeen)}` : 'บัญชีนี้ยังไม่เคยออนไลน์'}>{lastSeen ? `ล่าสุด ${formatLastOnline(lastSeen)}` : 'ยังไม่เคยออนไลน์'}</span>}
+                        </span>
+                      </div>;
+                    })}
+            </div>
+          </section>}
+          <div className="flex flex-col gap-1">
+            <button onClick={() => setPinOpen(true)} className="btn btn-g btn-sm w-full">🔒 เปลี่ยน PIN</button>
+            <button onClick={signOut} className="btn btn-g btn-sm w-full">ออกจากระบบ</button>
+          </div>
+        </div>
       </aside>
       <main className="relative z-10 min-w-0 flex-1 p-4 md:p-8">
         <div className="mx-auto max-w-6xl">
@@ -121,3 +190,18 @@ export default function Layout() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
