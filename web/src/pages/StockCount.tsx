@@ -34,6 +34,15 @@ const LOW = 5;
 const GHOST_PREFIX = '__ghost__:';
 const ghostKey = (name: string) => name.trim().toLocaleLowerCase();
 
+function CopyTextButton({ text, label }: { text: string; label: string }) {
+  const toast = useToast();
+  async function copy() {
+    try { await navigator.clipboard.writeText(text.trim()); toast(`คัดลอก${label}แล้ว ✅`); }
+    catch { toast('คัดลอกไม่ได้ กรุณาเลือกชื่อแล้วคัดลอกเอง', 'error'); }
+  }
+  return <button type="button" className="shrink-0 rounded px-1.5 text-sm text-mute transition hover:bg-white/10 hover:text-white" title={`คัดลอก${label}`} aria-label={`คัดลอก${label}`} onClick={() => void copy()}>📋</button>;
+}
+
 function referencedGhostName(item: Product['bundleItems'][number]) {
   if (!item.productId.startsWith(GHOST_PREFIX)) return '';
   const idName = item.productId.slice(GHOST_PREFIX.length);
@@ -89,9 +98,9 @@ function ProductCard({ p, maps, shops, cur, saving, counted, editable, onChange,
       <div className="flex gap-3">
         <Thumb src={p.thumbnail} className="h-14 w-14 sm:h-16 sm:w-16" />
         <div className="min-w-0 flex-1">
-          <div className="break-words font-bold">{p.name}{p.isBundle && <span className="ml-1.5"><Chip tone="shop">📦</Chip></span>}</div>
+          <div className="flex items-start gap-1"><div className="min-w-0 flex-1 break-words font-bold">{p.name}{p.isBundle && <span className="ml-1.5"><Chip tone="shop">📦</Chip></span>}</div><CopyTextButton text={p.name} label="ชื่อสินค้า" /></div>
           <div className="mt-1 flex flex-wrap gap-1.5">
-            {map && <Chip tone="map" className="text-[0.8rem]">{map.icon} {map.name}</Chip>}
+            {map && <><Chip tone="map" className="text-[0.8rem]">{map.icon} {map.name}</Chip>{map.icon && <CopyTextButton text={map.icon} label={`สัญลักษณ์แมพ ${map.name}`} />}</>}
             <Chip tone="id" className="text-[0.8rem]">🔑 {shop?.shopId ?? 'ไม่ระบุ Account'}</Chip>
             {p.stock <= LOW && <Chip tone="low">⚠️ ต่ำ</Chip>}
             {p.isBundle && <Chip>คำนวณจากส่วนประกอบ</Chip>}
@@ -119,7 +128,7 @@ function GhostCard({ g, cur, saving, counted, editable, onChange, onSaveNext, us
       <div className="flex gap-3">
         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-s3 text-3xl sm:h-16 sm:w-16">👻</div>
         <div className="min-w-0 flex-1">
-          <div className="break-words font-bold text-orange">{g.name}</div>
+          <div className="flex items-start gap-1"><div className="min-w-0 flex-1 break-words font-bold text-orange">{g.name}</div><CopyTextButton text={g.name} label="ชื่อ Ghost" /></div>
           <div className="mt-1"><Chip>👻 Ghost · ชิ้นส่วนที่ไม่ขายแยก</Chip>{g.stock <= LOW && <span className="ml-1.5"><Chip tone="low">⚠️ ต่ำ</Chip></span>}</div>
           <div className="mt-2 rounded-md border border-orange/20 bg-orange/5 px-2.5 py-2">
             <div className="mb-1 text-[0.7rem] font-bold uppercase tracking-wide text-orange">🧩 ใช้ในเซ็ต</div>
