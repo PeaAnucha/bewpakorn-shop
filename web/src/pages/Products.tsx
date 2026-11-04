@@ -74,6 +74,7 @@ export default function ProductsPage() {
   const ghosts = useGhosts();
 
   const [selMap, setSelMap] = useState('all');
+  const [selShopId, setSelShopId] = useState('');
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
   const [type, setType] = useState<TypeTab>('all');
@@ -96,10 +97,21 @@ export default function ProductsPage() {
     all.forEach((p) => { if (p.mapId) c[p.mapId] = (c[p.mapId] ?? 0) + 1; });
     return c;
   }, [all]);
-  const list = useMemo(
-    () => filterSortProducts(all, mapList, shopList, { q, status, type, mapId: selMap, sort }),
-    [all, mapList, shopList, q, status, type, selMap, sort],
-  );
+  const accountCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    all.forEach((p) => {
+      if (p.mapId === selMap) {
+        const accountId = p.shopIdRef ?? '';
+        counts.set(accountId, (counts.get(accountId) ?? 0) + 1);
+      }
+    });
+    return counts;
+  }, [all, selMap]);
+  const list = useMemo(() => {
+    const filtered = filterSortProducts(all, mapList, shopList, { q, status, type, mapId: selMap, sort });
+    if (selShopId === '__unassigned__') return filtered.filter((p) => !p.shopIdRef);
+    return selShopId ? filtered.filter((p) => p.shopIdRef === selShopId) : filtered;
+  }, [all, mapList, shopList, q, status, type, selMap, sort, selShopId]);
   // โหมดจัดเรียง: เฉพาะสินค้าทั้งหมดของแมพที่เลือก (ไม่กรอง) เรียงตามลำดับปัจจุบัน
   const sortList = useMemo(
     () => (sortMode && selMap !== 'all' ? filterSortProducts(all, mapList, shopList, { q: '', status: '', type: 'all', mapId: selMap, sort: 'custom' }) : []),
@@ -175,8 +187,22 @@ export default function ProductsPage() {
       </div>
 
       <div className="mb-4">
-        <MapChips maps={mapList} counts={counts} total={all.length} selected={selMap} onSelect={(id) => { setSelMap(id); resetView(); if (id === 'all') setSortMode(false); }} />
+        <MapChips maps={mapList} counts={counts} total={all.length} selected={selMap} onSelect={(id) => { setSelMap(id); setSelShopId(''); resetView(); if (id === 'all') setSortMode(false); }} />
       </div>
+
+      {selMap !== 'all' && !sortMode && (
+        <div className="mb-4 flex flex-wrap gap-2" aria-label="กรองสินค้าตามไอดีบัญชี">
+          <button type="button" onClick={() => { setSelShopId(''); resetView(); }} className={`cursor-pointer whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-200 ${!selShopId ? 'bg-accent text-black' : 'bg-teal-400/10 text-teal-200 ring-1 ring-teal-300/20 hover:bg-teal-400/20'}`}>
+            🔑 ทุกไอดี<span className={`ml-1 text-xs ${!selShopId ? 'opacity-70' : 'text-mute'}`}>{fmtNum([...accountCounts.values()].reduce((sum, n) => sum + n, 0))}</span>
+          </button>
+          {shopList.filter((shop) => accountCounts.has(shop.id)).map((shop) => (
+            <button key={shop.id} type="button" onClick={() => { setSelShopId(shop.id); resetView(); }} className={`cursor-pointer whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-200 ${selShopId === shop.id ? 'bg-accent text-black' : 'bg-teal-400/10 text-teal-200 ring-1 ring-teal-300/20 hover:bg-teal-400/20'}`}>
+              🔑 {shop.shopId}<span className={`ml-1 text-xs ${selShopId === shop.id ? 'opacity-70' : 'text-mute'}`}>{fmtNum(accountCounts.get(shop.id) ?? 0)}</span>
+            </button>
+          ))}
+          {(accountCounts.get('') ?? 0) > 0 && <button type="button" onClick={() => { setSelShopId('__unassigned__'); resetView(); }} className={`cursor-pointer whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-200 ${selShopId === '__unassigned__' ? 'bg-accent text-black' : 'bg-teal-400/10 text-teal-200 ring-1 ring-teal-300/20 hover:bg-teal-400/20'}`}>🔑 ไม่ระบุไอดี<span className={`ml-1 text-xs ${selShopId === '__unassigned__' ? 'opacity-70' : 'text-mute'}`}>{fmtNum(accountCounts.get('') ?? 0)}</span></button>}
+        </div>
+      )}
 
       {sortMode ? (
         <>
