@@ -30,13 +30,16 @@ function Row({ p, index, shop, handle, edge }: { p: Product; index: number; shop
 }
 
 /** จัดลำดับสินค้าของแมพหนึ่งด้วยการลากวาง (บันทึกอัตโนมัติ: ลำดับ 1..n ตามที่เห็น) */
-export default function ProductSortList({ products, shops }: { products: Product[]; shops: ShopIdRow[] }) {
+export default function ProductSortList({ products, orderContext = products, shops }: { products: Product[]; orderContext?: Product[]; shops: ShopIdRow[] }) {
   const toast = useToast();
   const refresh = useRefreshData();
 
   async function persist(ids: string[]) {
-    const current = new Map(products.map((p) => [p.id, p.sortOrder]));
-    const items = ids.map((id, i) => ({ id, sort: i + 1 })).filter((x) => current.get(x.id) !== x.sort);
+    const selectedIds = new Set(products.map((p) => p.id));
+    let selectedIndex = 0;
+    const orderedIds = orderContext.map((p) => selectedIds.has(p.id) ? ids[selectedIndex++] : p.id);
+    const current = new Map(orderContext.map((p) => [p.id, p.sortOrder]));
+    const items = orderedIds.map((id, i) => ({ id, sort: i + 1 })).filter((x) => current.get(x.id) !== x.sort);
     if (!items.length) return;
     try {
       await bulkUpdateSort(items);

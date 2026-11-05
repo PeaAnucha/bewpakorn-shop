@@ -117,6 +117,9 @@ export default function ProductsPage() {
     () => (sortMode && selMap !== 'all' ? filterSortProducts(all, mapList, shopList, { q: '', status: '', type: 'all', mapId: selMap, sort: 'custom' }) : []),
     [sortMode, all, mapList, shopList, selMap],
   );
+  const sortAccountList = selShopId === '__unassigned__'
+    ? sortList.filter((p) => !p.shopIdRef)
+    : selShopId ? sortList.filter((p) => p.shopIdRef === selShopId) : sortList;
   const flags = useMemo(() => emptyShopIds(shopList, all, selMap), [shopList, all, selMap]);
   const selectedMap = mapList.find((m) => m.id === selMap);
   const detail = detailId ? all.find((p) => p.id === detailId) ?? null : null;
@@ -190,7 +193,7 @@ export default function ProductsPage() {
         <MapChips maps={mapList} counts={counts} total={all.length} selected={selMap} onSelect={(id) => { setSelMap(id); setSelShopId(''); resetView(); if (id === 'all') setSortMode(false); }} />
       </div>
 
-      {selMap !== 'all' && !sortMode && (
+      {selMap !== 'all' && (
         <div className="mb-4 flex flex-wrap gap-2" aria-label="กรองสินค้าตามไอดีบัญชี">
           <button type="button" onClick={() => { setSelShopId(''); resetView(); }} className={`cursor-pointer whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-semibold transition duration-200 ${!selShopId ? 'bg-accent text-black' : 'bg-teal-400/10 text-teal-200 ring-1 ring-teal-300/20 hover:bg-teal-400/20'}`}>
             🔑 ทุกไอดี<span className={`ml-1 text-xs ${!selShopId ? 'opacity-70' : 'text-mute'}`}>{fmtNum([...accountCounts.values()].reduce((sum, n) => sum + n, 0))}</span>
@@ -207,9 +210,9 @@ export default function ProductsPage() {
       {sortMode ? (
         <>
           <div className="mb-3 rounded-lg bg-s2 px-4 py-2.5 text-xs text-mute">
-            ↕️ ลากรายการ (หรือกดค้างบนมือถือ) เพื่อจัดลำดับ · ปุ่ม ⤒ ⤓ ย้ายไปบนสุด/ล่างสุด · บันทึกอัตโนมัติ · ลำดับ 1..{sortList.length} ใช้เฉพาะภายในแมพนี้ (รวมสินค้าที่ปิดอยู่)
+            ↕️ ลากรายการ (หรือกดค้างบนมือถือ) เพื่อจัดลำดับ · ปุ่ม ⤒ ⤓ ย้ายไปบนสุด/ล่างสุด · บันทึกอัตโนมัติ · จัดเรียงเฉพาะไอดีที่เลือก โดยตำแหน่งไอดีอื่นในแมพคงเดิม
           </div>
-          {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !sortList.length ? <Empty icon="🎁" text="แมพนี้ยังไม่มีสินค้า" /> : <ProductSortList products={sortList} shops={shopList} />}
+          {loading ? <Spinner /> : error ? <ErrorBox error={error} /> : !sortAccountList.length ? <Empty icon="🎁" text="ไอดีนี้ยังไม่มีสินค้าในแมพนี้" /> : <ProductSortList products={sortAccountList} orderContext={sortList} shops={shopList} />}
         </>
       ) : (
         <>
