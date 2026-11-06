@@ -232,7 +232,7 @@ export default function ProductsPage() {
 
           {(flags.empty.length > 0 || flags.outOfStock.length > 0) && (
             <details className="mb-3 rounded-lg bg-s2/60 px-4 py-2.5 text-sm">
-              <summary className="cursor-pointer select-none text-mute">
+              <summary className="cursor-pointer text-mute">
                 ⚠️ ไอดีที่ควรตรวจสอบ{selectedMap ? ` ใน ${selectedMap.name}` : ''}:{' '}
                 {flags.empty.length > 0 && <>ไม่มีสินค้า <b className="text-danger">{flags.empty.length}</b></>}
                 {flags.empty.length > 0 && flags.outOfStock.length > 0 && ' · '}

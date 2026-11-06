@@ -50,7 +50,7 @@ interface CardProps {
 /** ตัวการ์ดแมพ (ใช้ทั้งในตาราง และเป็นภาพที่ลอยตามเมาส์ตอนลาก) */
 function MapCard({ map, index, canEdit, canDelete, onEdit, onDelete, handle }: CardProps & { handle?: React.ReactNode }) {
   return (
-    <div className="relative h-full select-none rounded-lg bg-s2 p-4 pb-7 text-center">
+    <div className="relative h-full rounded-lg bg-s2 p-4 pb-7 text-center">
       <span className="absolute left-2 top-2 rounded-md bg-s3 px-1.5 py-0.5 text-[0.65rem] font-bold text-faint">{index + 1}</span>
       {handle}
       <div className="absolute right-2 top-2 flex gap-1">
@@ -72,14 +72,13 @@ function SortableMap(props: CardProps & { canDrag: boolean }) {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`h-full ${props.canDrag ? 'cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'opacity-30' : ''}`}
-      {...(props.canDrag ? listeners : {})}
+      className={`h-full ${isDragging ? 'opacity-30' : ''}`}
     >
       <MapCard
         {...props}
         handle={props.canDrag && (
-          <button ref={setActivatorNodeRef} {...attributes} aria-label={`ลากเพื่อจัดลำดับ ${props.map.name}`} title="ลากเพื่อจัดลำดับ"
-            className="absolute bottom-1.5 left-1/2 -translate-x-1/2 cursor-grab rounded px-2 text-lg leading-none text-faint hover:text-accent">
+          <button ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={`ลากเพื่อจัดลำดับ ${props.map.name}`} title="ลากเพื่อจัดลำดับ"
+            className="absolute bottom-1.5 left-1/2 -translate-x-1/2 cursor-grab rounded px-2 text-lg leading-none text-faint hover:text-accent active:cursor-grabbing">
             ⠿
           </button>
         )}

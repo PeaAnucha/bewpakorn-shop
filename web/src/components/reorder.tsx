@@ -86,15 +86,14 @@ export function SortableItem({ id, label, disabled, children }: {
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id, disabled });
   const handle = (
-    <button ref={setActivatorNodeRef} {...attributes} aria-label={`ลากเพื่อจัดลำดับ ${label}`} title="ลากเพื่อจัดลำดับ"
-      className="cursor-grab rounded px-1.5 text-lg leading-none text-faint hover:text-accent">⠿</button>
+    <button ref={setActivatorNodeRef} {...attributes} {...(disabled ? {} : listeners)} aria-label={`ลากเพื่อจัดลำดับ ${label}`} title="ลากเพื่อจัดลำดับ"
+      className="cursor-grab rounded px-1.5 text-lg leading-none text-faint hover:text-accent active:cursor-grabbing">⠿</button>
   );
   return (
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`${disabled ? '' : 'cursor-grab select-none active:cursor-grabbing'} ${isDragging ? 'opacity-30' : ''}`}
-      {...(disabled ? {} : listeners)}
+      className={isDragging ? 'opacity-30' : ''}
     >
       {children({ handle })}
     </div>
