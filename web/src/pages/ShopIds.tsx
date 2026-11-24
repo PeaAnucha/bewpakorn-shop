@@ -3,7 +3,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { addShopIds, deleteShopIds, errMsg, saveShopId, useMaps, useRefreshData, useShopIdsOrdered, type ShopIdInput } from '../lib/data';
 import type { MapRow, ShopIdRow } from '../lib/types';
 import ShopIdSortList from '../components/ShopIdSortList';
-import { Chip, Empty, ErrorBox, Field, MapChips, Modal, Spinner, useToast } from '../components/ui';
+import { Chip, Empty, ErrorBox, Field, MapChips, Modal, Spinner, useConfirm, useToast } from '../components/ui';
 
 function ShopIdForm({ row, maps, defaultMap, onClose }: { row: ShopIdRow | null; maps: MapRow[]; defaultMap: string; onClose: () => void }) {
   const toast = useToast();
@@ -20,7 +20,7 @@ function ShopIdForm({ row, maps, defaultMap, onClose }: { row: ShopIdRow | null;
     setBusy(true);
     try {
       await saveShopId(row?.id ?? null, { shopId, password, mapId, note });
-      await refresh();
+      await refresh('shopIds');
       toast('บันทึกสำเร็จ ✅');
       onClose();
     } catch (e) { toast(errMsg(e).includes('ซ้ำ') ? 'Shop ID นี้มีอยู่แล้ว' : errMsg(e), 'error'); } finally { setBusy(false); }
@@ -75,7 +75,7 @@ function BulkForm({ maps, existing, defaultMap, onClose }: { maps: MapRow[]; exi
     setBusy(true);
     try {
       await addShopIds(parsed.items);
-      await refresh();
+      await refresh('shopIds');
       toast(`เพิ่มสำเร็จ ${parsed.items.length} รายการ ✅${parsed.dup ? ` (ข้ามที่ซ้ำ ${parsed.dup})` : ''}`);
       onClose();
     } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
@@ -103,9 +103,11 @@ function BulkForm({ maps, existing, defaultMap, onClose }: { maps: MapRow[]; exi
 export default function ShopIdsPage() {
   const { can } = useAuth();
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const refresh = useRefreshData();
   const maps = useMaps();
-  const shops = useShopIdsOrdered();
+  // หน้านี้แสดงและแก้รหัสผ่าน จึงต้องดึงรหัสด้วย (ถ้าไม่ดึง การบันทึกฟอร์มจะล้างรหัสเดิม)
+  const shops = useShopIdsOrdered(true);
   const [sortMode, setSortMode] = useState(false);
   const [selMap, setSelMap] = useState('all');
   const [q, setQ] = useState('');
@@ -140,8 +142,8 @@ export default function ShopIdsPage() {
   const canDel = can('shopids', 'delete');
 
   async function removeMany(ids: string[]) {
-    if (!ids.length || !confirm(`ลบ ${ids.length} รายการ?\nสินค้าที่ผูกกับไอดีเหล่านี้จะกลายเป็นไม่ระบุไอดี`)) return;
-    try { await deleteShopIds(ids); setPicked(new Set()); await refresh(); toast('ลบสำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
+    if (!ids.length || !await confirmDialog({ title: 'ลบไอดีร้าน', message: `ลบ ${ids.length} รายการ?\nสินค้าที่ผูกกับไอดีเหล่านี้จะกลายเป็นไม่ระบุไอดี`, confirmLabel: '🗑️ ลบ', danger: true })) return;
+    try { await deleteShopIds(ids); setPicked(new Set()); await refresh('shopIds'); toast('ลบสำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
   }
 
   return (

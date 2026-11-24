@@ -4,13 +4,26 @@ import BulkProducts from '../components/BulkProducts';
 import ProductDetail from '../components/ProductDetail';
 import ProductForm from '../components/ProductForm';
 import ProductSortList from '../components/ProductSortList';
-import { Chip, Empty, ErrorBox, MapChips, Menu, Spinner, Thumb, useToast } from '../components/ui';
+import { Chip, Empty, ErrorBox, MapChips, Menu, Spinner, Thumb, useConfirm, useToast } from '../components/ui';
 import { deleteProducts, errMsg, saveProduct, useGhosts, useMaps, useProducts, useRefreshData, useShopIdMapBans, useShopIdsOrdered } from '../lib/data';
 import { downloadCsv, fmtNum, today } from '../lib/format';
 import { emptyShopIds, filterSortProducts, type SortKey, type TypeTab } from '../lib/products';
 import type { Product } from '../lib/types';
 
 const PAGE = 100;
+const editedAtFormatter = new Intl.DateTimeFormat('th-TH', {
+  dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok',
+});
+const editedAtTitleFormatter = new Intl.DateTimeFormat('th-TH', {
+  dateStyle: 'full', timeStyle: 'short', timeZone: 'Asia/Bangkok',
+});
+
+function editedAt(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : {
+    short: editedAtFormatter.format(date), full: editedAtTitleFormatter.format(date),
+  };
+}
 
 function ProductThumb({ product }: { product: Product }) {
   const depleted = product.stock <= 0;
@@ -38,7 +51,7 @@ function ProductQuickEdit({ product, onClose }: { product: Product; onClose: () 
         description: product.description ?? '', status: product.status, thumbnail: thumbnail.trim(),
         isBundle: product.isBundle, bundleItems: product.bundleItems ?? [], sortOrder: product.sortOrder,
       });
-      await refresh();
+      await refresh('products');
       toast('บันทึกสต็อกและรูปสินค้าแล้ว ✅');
       onClose();
     } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
@@ -66,6 +79,7 @@ function ProductQuickEdit({ product, onClose }: { product: Product; onClose: () 
 export default function ProductsPage() {
   const { can } = useAuth();
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const refresh = useRefreshData();
   const maps = useMaps();
   const shops = useShopIdsOrdered();
@@ -90,7 +104,7 @@ export default function ProductsPage() {
   const mapList = maps.data ?? [];
   const shopList = shops.data ?? [];
   const all = products.data ?? [];
-  const bannedPairs = new Set((shopIdMapBans.data ?? []).map((ban) => `${ban.shopIdId}\u0000${ban.mapId}`));
+  const bannedPairs = useMemo(() => new Set((shopIdMapBans.data ?? []).map((ban) => `${ban.shopIdId}\u0000${ban.mapId}`)), [shopIdMapBans.data]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -137,6 +151,12 @@ export default function ProductsPage() {
     setQ(''); setStatus(''); setType('all'); setSort('custom'); setPicked(new Set()); setSortMode(true);
   }
 
+  // คลิกแถวเพื่อเปิดรายละเอียด แต่ถ้าผู้ใช้กำลังลากเลือกข้อความ (เช่นคัดลอกชื่อ) ไม่ต้องเปิด
+  function openDetailUnlessSelecting(id: string) {
+    if (window.getSelection()?.toString().trim()) return;
+    setDetailId(id);
+  }
+
   async function copyProductName(name: string) {
     try { await navigator.clipboard.writeText(name.trim()); toast('คัดลอกชื่อสินค้าแล้ว ✅'); }
     catch { toast('คัดลอกไม่ได้ กรุณาเลือกชื่อแล้วคัดลอกเอง', 'error'); }
@@ -144,8 +164,8 @@ export default function ProductsPage() {
 
   async function remove(ids: string[]) {
     const label = ids.length === 1 ? `"${all.find((p) => p.id === ids[0])?.name}"` : `${ids.length} รายการ`;
-    if (!ids.length || !confirm(`ลบสินค้า ${label}?`)) return;
-    try { await deleteProducts(ids); setPicked(new Set()); setDetailId(null); await refresh(); toast('ลบสำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
+    if (!ids.length || !await confirmDialog({ title: 'ลบสินค้า', message: `ลบสินค้า ${label}?`, confirmLabel: '🗑️ ลบ', danger: true })) return;
+    try { await deleteProducts(ids); setPicked(new Set()); setDetailId(null); await refresh('products'); toast('ลบสำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
   }
 
   function exportCsv() {
@@ -265,17 +285,21 @@ export default function ProductsPage() {
                 {visible.map((p, index) => {
                   const map = mapList.find((m) => m.id === p.mapId);
                   const shop = shopList.find((s) => s.id === p.shopIdRef);
+                  const lastEdited = editedAt(p.updatedAt);
                   const particleStyle = index < 12 ? { '--particle-delay': `${index * 45}ms` } as CSSProperties : undefined;
                   return (
                     <div key={p.id} style={particleStyle} className={`product-card ${index < 12 ? 'product-card-assemble' : ''} overflow-hidden rounded-lg border border-lime-300/20 shadow-sm shadow-black/20 backdrop-blur-lg transition-[scale,border-color,box-shadow] hover:scale-[1.015] hover:border-lime-300/45`}>
-                    <div onClick={() => setDetailId(p.id)}
-                      className={`group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition duration-200 hover:bg-white/[0.04] ${p.status === 'active' ? '' : 'opacity-60'}`}>
+                    <div role="button" tabIndex={0} aria-label={`ดูรายละเอียด ${p.name}`}
+                      onClick={() => openDetailUnlessSelecting(p.id)}
+                      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); setDetailId(p.id); } }}
+                      className={`group flex cursor-pointer items-center gap-3 px-3 py-2.5 transition duration-200 hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-lime-300 ${p.status === 'active' ? '' : 'opacity-60'}`}>
                       {canDel && <input type="checkbox" checked={picked.has(p.id)} onClick={(e) => e.stopPropagation()} onChange={() => togglePick(p.id)} />}
                       <ProductThumb product={p} />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-x-2">
                           <strong className="break-words font-semibold">{p.name}</strong>
                           <button type="button" className="icon-btn !h-7 !w-7" title="คัดลอกชื่อสินค้า" aria-label={`คัดลอกชื่อ ${p.name}`} onClick={(e) => { e.stopPropagation(); void copyProductName(p.name); }}>📋</button>
+                          {lastEdited && <time className="text-xs font-normal text-mute" dateTime={p.updatedAt} title={`อัปเดตข้อมูลหรือนับสต็อกล่าสุด ${lastEdited.full}`}>อัปเดตล่าสุด {lastEdited.short}</time>}
                           {p.isBundle && <span className="text-xs font-bold text-accent">📦 เซ็ต</span>}
                           {p.status !== 'active' && <span className="text-xs font-bold text-danger">ปิดใช้งาน</span>}
                           {p.shopIdRef && p.mapId && bannedPairs.has(`${p.shopIdRef}\u0000${p.mapId}`) && <Chip tone="low">🚫 โดนแบน{map ? ` · ${map.name}` : ''}</Chip>}

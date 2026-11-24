@@ -68,6 +68,7 @@ export interface StockHistoryEntry {
 }
 
 export interface StockCountRound {
+  id: string;
   countedIds: string[];
   skippedMapIds: string[];
   updatedAt: string;

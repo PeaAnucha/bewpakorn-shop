@@ -19,16 +19,16 @@ export default function ProductDetail({ product, maps, shops, products, ghosts, 
         {canEdit && <button className="btn btn-g" onClick={onEdit}>✏️ แก้ไขสินค้า</button>}
         {canDelete && <button className="btn bg-danger/15 text-danger hover:bg-danger/25" onClick={onDelete}>🗑️ ลบ</button>}
       </>}>
-      <div className="mb-4 flex gap-4">
+      <div className="mb-4 flex min-w-0 gap-4">
         <Thumb src={product.thumbnail} className="h-24 w-24" />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 font-head text-lg font-bold">
-            {product.name}
+            <span className="min-w-0 break-words">{product.name}</span>
             {product.isBundle && <Chip tone="shop">📦 Bundle</Chip>}
             <Chip tone={product.status === 'active' ? 'ok' : 'off'}>{product.status === 'active' ? 'ใช้งาน' : 'ปิด'}</Chip>
           </div>
-          <p className={`mt-1 text-sm ${product.description ? 'text-mute' : 'italic text-faint'}`}>{product.description || 'ไม่มีคำอธิบาย'}</p>
-          <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-mono text-sm font-semibold text-sky-200">
+          <p className={`mt-1 break-words text-sm ${product.description ? 'text-mute' : 'italic text-faint'}`}>{product.description || 'ไม่มีคำอธิบาย'}</p>
+          <div className="mt-2 inline-flex max-w-full flex-wrap items-center gap-2 rounded-md border border-sky-300/25 bg-sky-400/15 px-2 py-1 font-mono text-sm font-semibold text-sky-200">
             <span className="font-sans text-xs font-bold uppercase tracking-wide text-sky-100">Product ID</span>
             <span className="break-all">{product.id}</span>
           </div>
@@ -37,11 +37,11 @@ export default function ProductDetail({ product, maps, shops, products, ghosts, 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           ['สต็อก', <span className={low ? 'text-danger' : 'text-green'}>{fmtNum(product.stock)} ชิ้น{low ? ' ⚠️' : ''}</span>],
-          ['แมพ', map ? <Chip tone="map" className="text-sm">{map.icon ?? ''} {map.name}</Chip> : '—'],
-          ['Shop ID', shop ? <Chip tone="id" className="text-sm">{shop.shopId}</Chip> : '—'],
+          ['แมพ', map ? <Chip tone="map" className="max-w-full text-sm"><span className="shrink-0">{map.icon ?? ''}</span><span className="min-w-0 truncate" title={map.name}>{map.name}</span></Chip> : '—'],
+          ['Shop ID', shop ? <Chip tone="id" className="max-w-full text-sm"><span className="min-w-0 truncate" title={shop.shopId}>{shop.shopId}</span></Chip> : '—'],
           ['ประเภท', product.isBundle ? '📦 Bundle' : '📌 เดี่ยว'],
         ].map(([k, v], i) => (
-          <div key={i} className="rounded-lg bg-s2 p-3"><div className="text-xs text-faint">{k}</div><div className="mt-0.5 text-sm font-bold">{v}</div></div>
+          <div key={i} className="min-w-0 rounded-lg bg-s2 p-3"><div className="text-xs text-faint">{k}</div><div className="mt-0.5 min-w-0 overflow-hidden text-sm font-bold">{v}</div></div>
         ))}
       </div>
       {product.isBundle && (
@@ -54,12 +54,12 @@ export default function ProductDetail({ product, maps, shops, products, ghosts, 
             const gstock = ghost ? ghosts.find((g) => g.name.trim().toLowerCase() === gname.toLowerCase())?.stock : undefined;
             const stock = ghost ? gstock : sub?.stock;
             return (
-              <div key={i} className="mb-1.5 flex items-center gap-3 rounded-lg bg-s2 px-3 py-2 text-sm">
-                <span className="w-10 font-bold text-accent">×{bi.ratio || 1}</span>
-                <span className={`flex-1 ${ghost ? 'text-orange' : ''}`}>
+              <div key={i} className="mb-1.5 flex min-w-0 flex-wrap items-center gap-3 rounded-lg bg-s2 px-3 py-2 text-sm">
+                <span className="w-10 shrink-0 font-bold text-accent">×{bi.ratio || 1}</span>
+                <span className={`min-w-0 flex-1 break-words ${ghost ? 'text-orange' : ''}`}>
                   {ghost ? `👻 ${gname}` : sub ? sub.name : <i className="text-faint">(ไม่พบ ID: {bi.productId})</i>}
                 </span>
-                {stock !== undefined && <span className={stock <= 5 ? 'text-danger' : 'text-faint'}>📦 {fmtNum(stock)} ชิ้น</span>}
+                {stock !== undefined && <span className={`shrink-0 ${stock <= 5 ? 'text-danger' : 'text-faint'}`}>📦 {fmtNum(stock)} ชิ้น</span>}
               </div>
             );
           })}

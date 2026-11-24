@@ -54,7 +54,7 @@ export default function BulkProducts({ maps, shops, defaultMapId, onClose }: { m
     setBusy(true);
     try {
       await addProducts(items.map((item, index) => ({ ...item, thumbnail: imageUrls[index]?.trim() ?? '' })));
-      await refresh();
+      await refresh('products');
       toast(`เพิ่มสำเร็จ ${items.length} รายการ ✅`);
       onClose();
     } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }

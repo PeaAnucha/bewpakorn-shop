@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { deleteRole, errMsg, saveRole, saveRolePermissions, useAppUsers, usePermRows, useRefreshData, useRoles, type RoleRow } from '../lib/data';
 import { ACTION_LABEL, ACTIONS, PAGES, cleanPerms, toggleAction, type Action, type PermMap } from '../lib/perms';
 import { roleStyle } from './AccountModal';
-import { Empty, ErrorBox, Field, Modal, Spinner, useToast } from './ui';
+import { Empty, ErrorBox, Field, Modal, Spinner, useConfirm, useToast } from './ui';
 
 function RoleForm({ role, onClose }: { role: RoleRow | null; onClose: () => void }) {
   const toast = useToast();
@@ -17,7 +17,7 @@ function RoleForm({ role, onClose }: { role: RoleRow | null; onClose: () => void
     setBusy(true);
     try {
       await saveRole(role?.id ?? null, { name, label, color });
-      await refresh();
+      await refresh('roles');
       toast(role ? 'บันทึกสำเร็จ ✅' : 'เพิ่ม Role สำเร็จ ✅');
       onClose();
     } catch (e) { toast(errMsg(e).includes('ซ้ำ') ? 'Role นี้มีอยู่แล้ว' : errMsg(e), 'error'); } finally { setBusy(false); }
@@ -37,6 +37,7 @@ function RoleForm({ role, onClose }: { role: RoleRow | null; onClose: () => void
 
 export default function RolesTab() {
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const refresh = useRefreshData();
   const roles = useRoles();
   const users = useAppUsers(true);
@@ -63,14 +64,14 @@ export default function RolesTab() {
     setSaving(true);
     try {
       await saveRolePermissions(current, cleanPerms(shown));
-      await refresh();
+      await refresh('roles');
       setDraft(null);
       toast('บันทึกสิทธิ์สำเร็จ ✅');
     } catch (e) { toast(errMsg(e), 'error'); } finally { setSaving(false); }
   }
   async function remove(r: RoleRow) {
-    if (!confirm(`ลบ Role "${r.label}"?`)) return;
-    try { await deleteRole(r.id); await refresh(); toast('ลบ Role สำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
+    if (!await confirmDialog({ title: 'ลบ Role', message: `ลบ Role "${r.label}"?`, confirmLabel: '🗑️ ลบ', danger: true })) return;
+    try { await deleteRole(r.id); await refresh('roles'); toast('ลบ Role สำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
   }
 
   if (roles.isLoading) return <Spinner />;

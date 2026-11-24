@@ -79,7 +79,7 @@ export default function ProductForm({ product, defaultMapId, maps, shops, produc
         name: name.trim(), mapId, shopIdRef, stock: Math.max(0, parseInt(stock, 10) || 0), description: description.trim(), status,
         thumbnail: thumb.trim(), isBundle, bundleItems: isBundle ? valid : [], sortOrder: sort,
       });
-      await refresh();
+      await refresh('products');
       toast('บันทึกสำเร็จ ✅');
       onClose();
     } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }

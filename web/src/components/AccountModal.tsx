@@ -76,7 +76,7 @@ export default function AccountModal({ employee, user, roles, employees, onClose
     try {
       await saveAccount(user!.id, { roles: sel, displayName, employeeId: empId, avatarUrl });
       if (user!.id === profile?.id) setAvatarUrl(avatarUrl.trim() || null);
-      await refresh();
+      await refresh('people');
       toast('บันทึกสำเร็จ ✅');
       if (pin) setShowCmd(true); else onClose();
     } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }

@@ -122,7 +122,7 @@ export default function LoginLogoScene() {
     <div ref={mountRef} className="pointer-events-none absolute inset-0 flex items-center justify-center" role="img" aria-label="Bewpakorn Shop logo">
       <img
         ref={logoRef}
-        src="/brand-logo.png"
+        src="/brand-logo.jpg"
         alt=""
         className={`absolute z-10 h-16 w-16 rounded-xl object-cover shadow-lg transition-opacity duration-300 ${cubeReady ? 'opacity-0' : 'opacity-100'}`}
       />

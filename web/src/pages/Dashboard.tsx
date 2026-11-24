@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
@@ -14,7 +14,7 @@ const TABLES = [
   { table: 'employees', label: 'พนักงาน', icon: '👥' },
 ] as const;
 
-function Stat({ table, label, icon }: (typeof TABLES)[number]) {
+function Stat({ table, label, icon, index }: (typeof TABLES)[number] & { index: number }) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['count', table],
     queryFn: async () => {
@@ -24,7 +24,7 @@ function Stat({ table, label, icon }: (typeof TABLES)[number]) {
     },
   });
   return (
-    <div className="card">
+    <div className="card dashboard-reveal" style={{ '--dashboard-delay': `${60 + index * 70}ms` } as CSSProperties}>
       <div className="text-2xl">{icon}</div>
       <div className="mt-1 font-head text-3xl font-extrabold text-accent">{isLoading ? '…' : error ? '—' : data}</div>
       <div className="text-sm text-mute">{label}</div>
@@ -72,14 +72,14 @@ export default function Dashboard() {
   const recent = history.data?.slice(0, 8) ?? [];
 
   return (
-    <div>
+    <div className="dashboard-motion">
       <h1 className="mb-4 font-head text-3xl font-bold tracking-tight text-white">📊 แดชบอร์ด</h1>
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {TABLES.map((t) => <Stat key={t.table} {...t} />)}
+        {TABLES.map((t, index) => <Stat key={t.table} {...t} index={index} />)}
       </div>
 
       {canViewProducts && <div className="mt-5 grid gap-4 xl:grid-cols-2">
-        <section className="card !p-0">
+        <section className="card dashboard-reveal !p-0" style={{ '--dashboard-delay': '340ms' } as CSSProperties}>
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <div>
               <h2 className="font-head text-lg font-bold text-white">🕘 รายการเปลี่ยนสต็อกล่าสุด</h2>
@@ -106,7 +106,7 @@ export default function Dashboard() {
         </section>
 
         <div className="grid content-start gap-4">
-          <section className="card !p-0">
+          <section className="card dashboard-reveal !p-0" style={{ '--dashboard-delay': '410ms' } as CSSProperties}>
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
               <div>
                 <h2 className="font-head text-lg font-bold text-white">⚠️ สินค้าใกล้หมด</h2>
@@ -128,7 +128,7 @@ export default function Dashboard() {
                   </div>}
           </section>
 
-          <section className="card !p-0">
+          <section className="card dashboard-reveal !p-0" style={{ '--dashboard-delay': '480ms' } as CSSProperties}>
             <div className="border-b border-line px-4 py-3">
               <h2 className="font-head text-lg font-bold text-white">🔄 สินค้าที่มีการเคลื่อนไหวมากที่สุด</h2>
               <p className="text-xs text-mute">รวมจำนวนที่เพิ่ม/ลดจริงใน 3 วันล่าสุด · ไม่นับยอดที่ไม่เปลี่ยน</p>

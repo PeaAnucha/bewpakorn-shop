@@ -43,7 +43,7 @@ export default function ProductSortList({ products, orderContext = products, sho
     if (!items.length) return;
     try {
       await bulkUpdateSort(items);
-      await refresh();
+      await refresh('products');
       toast('บันทึกลำดับสินค้าแล้ว ✅');
     } catch (e) {
       toast(`บันทึกลำดับไม่สำเร็จ: ${errMsg(e)}`, 'error');

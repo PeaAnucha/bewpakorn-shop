@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
 import { NAV } from '../nav';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,7 @@ import HangingLight from './HangingLight';
 import ProfileAvatarModal from './ProfileAvatarModal';
 import StaticBackground from './StaticBackground';
 import useLiquidGlassSurfaces from './useLiquidGlassSurfaces';
+import { Spinner } from './ui';
 
 function formatLastOnline(value: string | undefined) {
   if (!value) return 'ยังไม่เคยออนไลน์';
@@ -30,6 +31,9 @@ export default function Layout() {
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
   const [navOrder, setNavOrder] = useState<string[]>([]);
+  const location = useLocation();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [activeMenuRect, setActiveMenuRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const navOrderKey = profile ? `sidebar-order:${profile.id}` : null;
   const [loadedOrderKey, setLoadedOrderKey] = useState<string | null>(null);
   const { rootRef, surfaceCallbacks } = useLiquidGlassSurfaces(1);
@@ -89,6 +93,21 @@ export default function Layout() {
       .map(({ item }) => item);
   }, [can, navOrder]);
 
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return;
+    const measure = () => {
+      const active = menu.querySelector<HTMLElement>('[aria-current="page"]');
+      setActiveMenuRect(active ? { x: active.offsetLeft, y: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight } : null);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(menu);
+    const active = menu.querySelector<HTMLElement>('[aria-current="page"]');
+    if (active) observer.observe(active);
+    return () => observer.disconnect();
+  }, [location.pathname, items, reorderMode]);
+
   function moveNavItem(path: string, direction: -1 | 1) {
     const current = items.map((item) => item.path);
     const index = current.indexOf(path);
@@ -108,7 +127,7 @@ export default function Layout() {
       <aside ref={surfaceCallbacks[0]} className="liquid-surface liquid-surface-sidebar relative z-10 backdrop-blur-sm md:sticky md:top-0 md:flex md:h-screen md:w-60 md:shrink-0 md:flex-col">
         <div className="flex items-center justify-between px-4 py-4 md:block">
           <div className="flex items-center gap-2 font-head text-lg font-extrabold text-accent">
-            <img src="/brand-logo.png" alt="Bewpakorn Shop" className="h-10 w-10 rounded-lg object-cover" />
+            <img src="/brand-logo.jpg" alt="Bewpakorn Shop" className="h-10 w-10 rounded-lg object-cover" />
             <span>BewpakornShop</span>
           </div>
           <div className="mt-0 flex items-center gap-2 md:mt-4">
@@ -130,17 +149,19 @@ export default function Layout() {
             {reorderMode ? '✅ เสร็จสิ้นการจัดเมนู' : '↕️ จัดเรียงเมนู'}
           </button>
           {reorderMode && <button type="button" className="btn btn-g btn-sm shrink-0 !justify-start" onClick={() => setNavOrder([])}>คืนค่าเริ่มต้น</button>}
-          {items.map((n) => (
-            <div key={n.path} className="flex shrink-0 items-center gap-1 md:w-full">
+          <div ref={menuRef} className="sidebar-menu relative flex shrink-0 gap-1 md:flex-col">
+          <div aria-hidden="true" className="sidebar-active-indicator" style={activeMenuRect ? { width: activeMenuRect.width, height: activeMenuRect.height, transform: `translate3d(${activeMenuRect.x}px, ${activeMenuRect.y}px, 0)`, opacity: 1 } : { opacity: 0 }} />
+          {items.map((n, index) => (
+            <div key={n.path} className="sidebar-nav-item flex shrink-0 items-center gap-1 md:w-full" style={{ '--nav-delay': `${Math.min(index, 8) * 35}ms` } as CSSProperties}>
               <NavLink
                 to={`/${n.path}`}
                 className={({ isActive }) =>
-                  `sidebar-link flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap rounded-lg border-l-[3px] px-3 py-2 text-sm font-bold transition duration-200 hover:scale-[1.01] ${
-                    isActive ? 'border-accent bg-surface text-accent' : 'border-transparent text-mute hover:text-white'
+                  `sidebar-link relative flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap rounded-lg border-l-[3px] border-transparent px-3 py-2 text-sm font-bold transition duration-200 ${
+                    isActive ? 'text-accent' : 'text-mute hover:text-white'
                   }`
                 }
               >
-                <span>{n.icon}</span>
+                <span className="sidebar-icon" aria-hidden="true">{n.icon}</span>
                 {n.label}
               </NavLink>
               {reorderMode && <div className="flex shrink-0 gap-0.5">
@@ -149,6 +170,7 @@ export default function Layout() {
               </div>}
             </div>
           ))}
+          </div>
         </nav>
               <div className="shrink-0 border-t border-white/10 px-3 pt-2 pb-3">
           {isAdmin && <section aria-label="สถานะบัญชี" className="mb-2">
@@ -181,9 +203,13 @@ export default function Layout() {
         </div>
       </aside>
       <main className="relative z-10 min-w-0 flex-1 p-4 md:p-8">
-        <div className="mx-auto max-w-6xl">
-          <Outlet />
-        </div>
+        {/* Suspense อยู่นอกกล่องที่มีแอนิเมชัน: ระหว่างโหลดโค้ดหน้าแสดง Spinner เฉยๆ
+            แล้วค่อยเล่นแอนิเมชันเข้าหน้าครั้งเดียวตอนเนื้อหาจริงขึ้น */}
+        <Suspense fallback={<div className="mx-auto max-w-6xl"><Spinner /></div>}>
+          <div key={location.pathname} className="page-enter mx-auto max-w-6xl">
+            <Outlet />
+          </div>
+        </Suspense>
       </main>
       {pinOpen && <ChangePin onClose={() => setPinOpen(false)} />}
       {avatarOpen && <ProfileAvatarModal onClose={() => setAvatarOpen(false)} />}

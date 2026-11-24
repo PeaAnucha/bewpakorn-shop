@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { deleteEmployee, errMsg, removeAccount, saveEmployee, useAccountPresence, useAppUsers, useEmployees, useRefreshData, useRoles, type AccountPresence, type AppUser, type Employee } from '../lib/data';
 import AccountModal, { RoleBadge } from './AccountModal';
-import { Chip, Empty, ErrorBox, Field, Modal, Spinner, useToast } from './ui';
+import { Chip, Empty, ErrorBox, Field, Modal, Spinner, useConfirm, useToast } from './ui';
 
 function UserAvatar({ src, name }: { src: string | null; name: string }) {
   return <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-line bg-accent/15 text-sm font-bold text-accent">
@@ -38,7 +38,7 @@ function EmployeeForm({ emp, onClose }: { emp: Employee | null; onClose: () => v
     setBusy(true);
     try {
       await saveEmployee(emp?.id ?? null, { name, position, email, pronoun, rank });
-      await refresh();
+      await refresh('people');
       toast(emp ? 'บันทึกสำเร็จ ✅' : 'เพิ่มพนักงานสำเร็จ ✅');
       onClose();
     } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
@@ -62,6 +62,7 @@ export default function EmployeesTab() {
   const { can, profile } = useAuth();
   const isAdmin = !!profile?.isAdmin;
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const refresh = useRefreshData();
   const emps = useEmployees();
   const roles = useRoles();
@@ -82,12 +83,12 @@ export default function EmployeesTab() {
 
   async function delEmp(e: Employee) {
     const u = userOf(e);
-    if (!confirm(`ลบพนักงาน "${e.name}"?${u ? `\nบัญชี "${u.username}" ที่ผูกอยู่จะถูกลบด้วย (ล็อกอินไม่ได้อีก)` : ''}`)) return;
-    try { await deleteEmployee(e.id, isAdmin && u ? u.id : null); await refresh(); toast('ลบสำเร็จ'); } catch (err) { toast(errMsg(err), 'error'); }
+    if (!await confirmDialog({ title: 'ลบพนักงาน', message: `ลบพนักงาน "${e.name}"?${u ? `\nบัญชี "${u.username}" ที่ผูกอยู่จะถูกลบด้วย (ล็อกอินไม่ได้อีก)` : ''}`, confirmLabel: '🗑️ ลบ', danger: true })) return;
+    try { await deleteEmployee(e.id, isAdmin && u ? u.id : null); await refresh('people'); toast('ลบสำเร็จ'); } catch (err) { toast(errMsg(err), 'error'); }
   }
   async function delAcct(u: AppUser) {
-    if (!confirm(`ถอดบัญชี "${u.username}"?\nผู้ใช้นี้จะล็อกอินเข้าระบบไม่ได้อีก (สร้างใหม่ได้ภายหลัง)`)) return;
-    try { await removeAccount(u.id); await refresh(); toast('ถอดบัญชีสำเร็จ'); } catch (err) { toast(errMsg(err), 'error'); }
+    if (!await confirmDialog({ title: 'ถอดบัญชี', message: `ถอดบัญชี "${u.username}"?\nผู้ใช้นี้จะล็อกอินเข้าระบบไม่ได้อีก (สร้างใหม่ได้ภายหลัง)`, confirmLabel: 'ถอดบัญชี', danger: true })) return;
+    try { await removeAccount(u.id); await refresh('people'); toast('ถอดบัญชีสำเร็จ'); } catch (err) { toast(errMsg(err), 'error'); }
   }
 
   const loading = emps.isLoading || roles.isLoading;

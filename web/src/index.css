@@ -42,7 +42,63 @@ code, pre { @apply font-mono; }
   to { --login-neon-angle: 360deg; }
 }
 
-.vanta-page { isolation: isolate; }
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes dashboard-reveal {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes sidebar-item-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.page-enter { animation: page-enter 360ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.dashboard-reveal {
+  animation: dashboard-reveal 620ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: var(--dashboard-delay, 0ms);
+}
+.sidebar-nav-item {
+  animation: sidebar-item-enter 360ms ease both;
+  animation-delay: var(--nav-delay, 0ms);
+}
+.sidebar-active-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  border: 1px solid rgba(100, 230, 148, 0.2);
+  border-left: 3px solid #1db954;
+  border-radius: 12px;
+  background: linear-gradient(105deg, rgba(29, 185, 84, 0.2), rgba(29, 185, 84, 0.05));
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.15);
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), width 280ms ease, height 280ms ease, opacity 160ms ease;
+}
+.sidebar-menu .sidebar-link { z-index: 1; }
+.sidebar-icon { display: inline-block; transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.sidebar-link:hover .sidebar-icon, .sidebar-link:focus-visible .sidebar-icon { transform: translateY(-2px) scale(1.15); }
+.sidebar-link:focus-visible { outline: 2px solid #86efac; outline-offset: -2px; }
+.dashboard-motion .card { transition: translate 200ms ease, scale 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
+@media (hover: hover) and (pointer: fine) {
+  .dashboard-motion .card:hover { translate: 0 -4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-enter, .dashboard-reveal, .sidebar-nav-item { animation: none !important; }
+  .sidebar-active-indicator, .sidebar-icon { transition: none; }
+  .sidebar-link:hover .sidebar-icon, .sidebar-link:focus-visible .sidebar-icon { transform: none; }
+  .dashboard-motion .card:hover { translate: none; }
+}
+
+/* Liquid Glass writes user-select:none inline on the app root during startup. */
+.vanta-page {
+  isolation: isolate;
+  /* Liquid Glass วาด canvas เลยขอบแถบเมนู 20px เพื่อทำขอบกระจก บนมือถือแถบเมนูกว้างเต็มจอ
+     จึงทำให้หน้าเลื่อนซ้าย-ขวาได้ ใช้ clip (ไม่ใช่ hidden) เพื่อไม่ให้ header แบบ sticky เสีย */
+  overflow-x: clip;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
 .ambient-background {
   position: fixed;
   inset: 0;

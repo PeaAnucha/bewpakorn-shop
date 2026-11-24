@@ -29,28 +29,82 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 // ───────── Modal ─────────
+// กล่องที่เปิดซ้อนกัน (เช่นกล่องยืนยันบนหน้ารายละเอียดสินค้า) ให้ปุ่ม Esc ปิดเฉพาะกล่องบนสุด
+const modalStack: object[] = [];
 export function Modal({ title, onClose, children, footer, wide }: {
   title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; wide?: boolean;
 }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const token = {};
+    modalStack.push(token);
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modalStack[modalStack.length - 1] === token) closeRef.current();
+    };
     window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', h);
+      modalStack.splice(modalStack.indexOf(token), 1);
+    };
+  }, []);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:p-4"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className={`my-auto w-full ${wide ? 'max-w-2xl' : 'max-w-md'} rounded-lg shadow-2xl modal-glass-panel`}>
-        <div className="flex items-center justify-between border-b border-line px-5 py-4">
-          <h2 className="font-head text-xl font-bold tracking-tight">{title}</h2>
-          <button onClick={onClose} className="rounded-lg px-2 py-1 text-mute hover:bg-s2 hover:text-ink" aria-label="ปิด">✕</button>
+        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+          <h2 className="min-w-0 break-words font-head text-xl font-bold tracking-tight">{title}</h2>
+          <button onClick={onClose} className="shrink-0 rounded-lg px-2 py-1 text-mute hover:bg-s2 hover:text-ink" aria-label="ปิด">✕</button>
         </div>
         <div className="p-5">{children}</div>
         {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-4">{footer}</div>}
       </div>
     </div>
+  );
+}
+
+// ───────── กล่องยืนยัน (แทน confirm() ของเบราว์เซอร์ ให้หน้าตาตรงกับธีมและใช้บนมือถือได้ดี) ─────────
+export interface ConfirmOptions {
+  title?: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;
+}
+type PendingConfirm = ConfirmOptions & { id: number };
+const ConfirmCtx = createContext<(options: ConfirmOptions) => Promise<boolean>>(async () => false);
+/** เรียกแล้วรอผล: true = ผู้ใช้กดยืนยัน, false = ยกเลิก/ปิด */
+export const useConfirm = () => useContext(ConfirmCtx);
+
+export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const [pending, setPending] = useState<PendingConfirm | null>(null);
+  const resolver = useRef<((ok: boolean) => void) | null>(null);
+  const seq = useRef(0);
+  const ask = useCallback((options: ConfirmOptions) => new Promise<boolean>((resolve) => {
+    resolver.current?.(false); // ถ้ามีกล่องเดิมค้างอยู่ ถือว่ายกเลิกกล่องเดิม
+    resolver.current = resolve;
+    setPending({ ...options, id: ++seq.current });
+  }), []);
+  const settle = useCallback((ok: boolean) => {
+    resolver.current?.(ok);
+    resolver.current = null;
+    setPending(null);
+  }, []);
+  const cancel = useCallback(() => settle(false), [settle]);
+  return (
+    <ConfirmCtx.Provider value={ask}>
+      {children}
+      {pending && (
+        <Modal key={pending.id} title={pending.title ?? 'ยืนยันการทำรายการ'} onClose={cancel} footer={<>
+          <button type="button" className="btn btn-g" onClick={cancel}>{pending.cancelLabel ?? 'ยกเลิก'}</button>
+          <button type="button" autoFocus className={`btn ${pending.danger ? 'bg-danger text-white hover:bg-danger/85' : 'btn-p'}`} onClick={() => settle(true)}>{pending.confirmLabel ?? 'ยืนยัน'}</button>
+        </>}>
+          <p className="whitespace-pre-line break-words text-sm text-ink">{pending.message}</p>
+        </Modal>
+      )}
+    </ConfirmCtx.Provider>
   );
 }
 
@@ -78,7 +132,7 @@ export const ErrorBox = ({ error }: { error: unknown }) => (
 export function Thumb({ src, className = 'h-16 w-16' }: { src?: string | null; className?: string }) {
   const [bad, setBad] = useState(false);
   if (!src || bad) return <div className={`${className} flex shrink-0 items-center justify-center rounded-lg bg-s3 text-2xl`}>🎁</div>;
-  return <img src={src} alt="" onError={() => setBad(true)} className={`${className} shrink-0 rounded-lg object-cover`} loading="lazy" />;
+  return <img src={src} alt="" onError={() => setBad(true)} className={`${className} shrink-0 rounded-lg object-cover`} loading="lazy" decoding="async" />;
 }
 
 export const Chip = ({ children, tone = 'default', className = '' }: { children: ReactNode; tone?: 'default' | 'ok' | 'low' | 'shop' | 'off' | 'id' | 'map'; className?: string }) => {

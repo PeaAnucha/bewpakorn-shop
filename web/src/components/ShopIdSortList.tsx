@@ -33,7 +33,7 @@ export default function ShopIdSortList({ shops, allIds }: { shops: ShopIdRow[]; 
   async function persist(ids: string[]) {
     try {
       await reorderShopIds(mergeIntoGlobal(allIds, ids));
-      await refresh();
+      await refresh('shopIds');
       toast('บันทึกลำดับ Shop ID แล้ว ✅');
     } catch (e) {
       toast(`บันทึกลำดับไม่สำเร็จ: ${errMsg(e)}`, 'error');

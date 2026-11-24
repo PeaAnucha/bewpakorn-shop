@@ -5,7 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useAuth } from '../auth/AuthProvider';
 import { deleteMaps, errMsg, reorderMaps, saveMap, useMaps, useProducts, useRefreshData } from '../lib/data';
 import type { MapRow } from '../lib/types';
-import { Empty, ErrorBox, Field, Modal, Spinner, useToast } from '../components/ui';
+import { Empty, ErrorBox, Field, Modal, Spinner, useConfirm, useToast } from '../components/ui';
 import { screenReaderTexts, useReorder } from '../components/reorder';
 
 function MapForm({ map, onClose }: { map: MapRow | null; onClose: () => void }) {
@@ -21,7 +21,7 @@ function MapForm({ map, onClose }: { map: MapRow | null; onClose: () => void }) 
     setBusy(true);
     try {
       await saveMap(map?.id ?? null, { name, icon, description: desc });
-      await refresh();
+      await refresh('maps');
       toast('บันทึกสำเร็จ ✅');
       onClose();
     } catch (e) { toast(errMsg(e), 'error'); } finally { setBusy(false); }
@@ -90,6 +90,7 @@ function SortableMap(props: CardProps & { canDrag: boolean }) {
 export default function MapsPage() {
   const { can } = useAuth();
   const toast = useToast();
+  const confirmDialog = useConfirm();
   const refresh = useRefreshData();
   const maps = useMaps();
   const products = useProducts();
@@ -100,7 +101,7 @@ export default function MapsPage() {
   async function persist(ids: string[]) {
     try {
       await reorderMaps(ids);
-      await refresh();
+      await refresh('maps');
       toast('บันทึกลำดับแมพแล้ว ✅');
     } catch (e) {
       toast(`บันทึกลำดับไม่สำเร็จ: ${errMsg(e)}`, 'error'); // ลำดับจะย้อนกลับเป็นของจริงในฐานข้อมูลเอง
@@ -112,8 +113,8 @@ export default function MapsPage() {
 
   async function remove(m: MapRow) {
     const n = (products.data ?? []).filter((p) => p.mapId === m.id).length;
-    if (!confirm(`ลบแมพ "${m.name}"?${n ? `\nสินค้า ${n} รายการในแมพนี้จะกลายเป็นไม่ระบุแมพ` : ''}`)) return;
-    try { await deleteMaps([m.id]); await refresh(); toast('ลบแมพสำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
+    if (!await confirmDialog({ title: 'ลบแมพ', message: `ลบแมพ "${m.name}"?${n ? `\nสินค้า ${n} รายการในแมพนี้จะกลายเป็นไม่ระบุแมพ` : ''}`, confirmLabel: '🗑️ ลบ', danger: true })) return;
+    try { await deleteMaps([m.id]); await refresh('maps'); toast('ลบแมพสำเร็จ'); } catch (e) { toast(errMsg(e), 'error'); }
   }
 
   const activeMap = r.activeId ? list.find((m) => m.id === r.activeId) : undefined;
